@@ -89,6 +89,13 @@ class ImageConverter(object):
         #---- Used at prediction time ----#
         self.obj_transform = Pose()
 
+        #---- Used at transform to base ----#
+        self.T_camera_to_ee = np.array([[-1., 0., 0., 29.604876295725482],
+                           [ 0., 1., 0., 69.03497489293414],
+                           [ 0., 0., -1., 142.4168182373045],
+                           [ 0., 0., 0., 1. ]], dtype=np.float32)
+        self.T_ee_to_base = np.eye(4, dtype=np.float32) # Need to change
+
         if not self.marker_transform_file is None:
             try:
                 self.marker_transforms = self.load_marker_transform(self.marker_transform_file)
@@ -262,9 +269,30 @@ class ImageConverter(object):
         marker_pose.orientation.w = quat[3]
 
         return marker_pose
+            
+    def calculate_camera_to_base_transform(self, marker_pose, matrix=False):
+        """
+        Given transforms of all detected markers calculate the pose of the object.
+        ----------
+        Args:
+            id_main {int} -- id of the main marker
+        ----------
+        """
+        # Camera to EE
+        ee_marker_pose = np.dot(T_camera_to_ee, marker_pose)
+        
+        # EE to base
+        b_c_marker_pose = np.dot(T_ee_to_base, ee_marker_pose)
 
+        # Matrix to Quat
+        tvec, rvec = utils.pose_to_quat_trans(b_c_marker_pose)
 
-    def calculate_transform(self, id_main):
+        if matrix:
+            return b_c_marker_pose
+        else:
+            return b_c_tvec, b_c_rvec
+
+    def calculate_transform(self, id_main, base=False):
         """
         Given transforms of all detected markers calculate the pose of the object.
         ----------
@@ -278,8 +306,11 @@ class ImageConverter(object):
         transforms_rot = []
         transforms_trans = []
         for i, marker_id in enumerate(detected_ids):
-            
-            trans, rot = utils.pose_to_quat_trans(marker_pose_list.poses[i])
+
+            if base:
+                trans, rot = calculate_camera_to_base_transform(marker_pose_list.poses[i])
+            else:
+                trans, rot = utils.pose_to_quat_trans(marker_pose_list.poses[i])
             
             if marker_id == id_main:
                 transforms_rot.append(rot)
@@ -397,7 +428,6 @@ def main():
 
         rospy.sleep(0.2)
         aruco_detect.calculate_transform(aruco_main_marker_id)
-
 
 if __name__ == '__main__':
     main()

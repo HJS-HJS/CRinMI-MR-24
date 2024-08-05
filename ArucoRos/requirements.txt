@@ -1,0 +1,6 @@
+Workspace calibration
+
+기존 연구실 코드 참조
+https://github.com/JureHudoklin/ArUcoROSpy.git
+
+패키지 설치한 뒤 realsense 사용

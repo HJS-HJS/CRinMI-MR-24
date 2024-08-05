@@ -12,24 +12,15 @@ from camera_interface.camera_interface import CameraInterface
 class Test(object):
     
     def __init__(self):
-        # custom module
-        # 1. ur10
-        # 2. gripper
-        # 2.5 camera
+        # camera interface test
         camera = CameraInterface()
-        # 3. perception
-        # 4. 6D pose
-        # 5. assemble planning
-        # 6. grip planning
-        # 7. calibration
-    
-    def run(self):
-        rospy.loginfo("run the mr code")
-        pass
+        rospy.loginfo('ready')
+        rospy.sleep(1)
+        camera.show_intrinsic()
+        camera.vis_image()
     
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')
     server = Test()
-    server.run()
     
     rospy.spin()

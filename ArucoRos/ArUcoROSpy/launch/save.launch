@@ -1,0 +1,12 @@
+<launch>
+
+  <arg name="img_id" default="0"/>
+  
+  <node name="save_image" pkg="aruco_detect" type="save_image.py" >
+    <param name="img_id" type="int" value="$(arg img_id)" />
+  </node>
+
+  <node name="save_pose" pkg="aruco_detect" type="save_pose.py" >
+    <param name="img_id" type="int" value="$(arg img_id)" />
+  </node>
+</launch>

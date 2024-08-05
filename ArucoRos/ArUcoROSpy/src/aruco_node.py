@@ -95,6 +95,7 @@ class ImageConverter(object):
                            [ 0., 0., -1., 142.4168182373045],
                            [ 0., 0., 0., 1. ]], dtype=np.float32)
         self.T_ee_to_base = np.eye(4, dtype=np.float32) # Need to change
+        self.base = kwargs["base_frame"]
 
         if not self.marker_transform_file is None:
             try:

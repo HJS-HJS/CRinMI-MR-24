@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import sys
+import os
 import rospy
 import numpy as np
 import time
 from dataclasses import dataclass
 
+robotSDK_dir = os.path.dirname(os.path.realpath(__file__)) + '/ketirobotsdk'
+sys.path.append(robotSDK_dir)
+
+from sdk import *
+
 class RobotControlServer():
 
-    def __init__(self, robot_ip):
+    def __init__(self, robot_ip='115.151.45.1'):
         """ Initialize robot connection using given robot_ip.
         Args:
             'str': RB10 robot ip 
@@ -57,7 +64,7 @@ class RobotControlServer():
         """
         robotInfo = self.rb10.RobotInfo()
         print("current_state : {0}".format(self.wait))
-        print("current_joint : {0}".format(current_joint))
+        print("current_joint : {0}".format(self.current_joint))
         print("current_pose_matrix : ")
         print(self.current_pose_matrix)
         
@@ -68,8 +75,8 @@ class RobotControlServer():
             `joint_array`: 6 joint_array values (unit: rad)
         """
         # check joint array type & length 
-        assert type(joint_array) != list, "joint_array must be list type!!"
-        assert len(joint_array) != 6, "length of joint array list is not 6!!"
+        assert type(joint_array) == list, "joint_array must be list type!!"
+        assert len(joint_array) == 6, "length of joint array list is not 6!!"
 
         if self.wait is True:
             self.rb10.movej(joint_array)
@@ -82,10 +89,10 @@ class RobotControlServer():
             't': translation matrix relative to robot base frame, input must be type 'numpy.ndarray'
         """
         # check rotation, translation matrix type & length
-        assert type(R) != 'numpy.ndarray', "MoveL rotation value must be numpy type!!"
-        assert type(t) != 'numpy.ndarray', "MoveL translation value must be numpy type!!"
-        assert R.shape != (3,3), "MoveL rotation matrix must be size 3x3!!"
-        assert t.shape != (3,), "MoveL translation matrix must be size 3x1!!"
+        assert isinstance(R, np.ndarray), "MoveL rotation value must be numpy type!!"
+        assert isinstance(t, np.ndarray), "MoveL translation value must be numpy type!!"
+        assert R.shape == (3,3), "MoveL rotation matrix must be size 3x3!!"
+        assert t.shape == (3,), "MoveL translation matrix must be size 3x1!!"
 
         # Create 4x4 homogenous matrix
         H = np.eye(4)
@@ -110,8 +117,8 @@ class RobotControlServer():
         """
 
         # check rotation, translation matrix type & length
-        assert type(R_array) != 'numpy.ndarray', "MoveB rotation array value must be numpy type!!"
-        assert type(t_array) != 'numpy.ndarray', "MoveB translation array value must be numpy type!!"
+        assert isinstance(R_array, np.ndarray), "MoveB rotation array value must be numpy type!!"
+        assert isinstance(t_array, np.ndarray), "MoveB translation array value must be numpy type!!"
 
         # check rotation, translation matrix length
         if len(R_array) != len(t_array):
@@ -138,7 +145,7 @@ class RobotControlServer():
         """
         rospy.loginfo("robot default velocity changed... Be careful")
         self.rb10.SetVelocity(velocity)
-    
+
     def Disconnect(self):
         """ 
            Disconnect robot

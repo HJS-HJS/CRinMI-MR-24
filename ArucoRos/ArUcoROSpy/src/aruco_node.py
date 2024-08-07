@@ -89,20 +89,16 @@ class ImageConverter(object):
         #---- Used at prediction time ----#
         self.obj_transform = Pose()
 
-        #---- Used at transform to base ----#
-        self.T_camera_to_ee = np.array([[-1., 0., 0., 29.604876295725482],
-                           [ 0., 1., 0., 69.03497489293414],
-                           [ 0., 0., -1., 142.4168182373045],
-                           [ 0., 0., 0., 1. ]], dtype=np.float32)
-        self.T_ee_to_base = np.eye(4, dtype=np.float32) # Need to change
-        self.base = kwargs["base_frame"]
-
         if not self.marker_transform_file is None:
             try:
                 self.marker_transforms = self.load_marker_transform(self.marker_transform_file)
             except:
                 ValueError("Invalid marker transform file")
         #--------------------------------#
+        
+        self.start_time = rospy.get_time()
+        self.duration = 3.0
+        self.marker_pose_dict = {}
 
         # ROS Publisher
         self.aruco_pub = rospy.Publisher("aruco_img", Image, queue_size=10)
@@ -170,7 +166,7 @@ class ImageConverter(object):
         self.K = np.reshape(msg.K,(3,3))    # Camera matrix
         self.D = np.array(msg.D) # Distortion matrix. 5 for IntelRealsense, 8 for AzureKinect
 
-    def detect_aruco(self, img, broadcast_markers_tf=False):
+    def detect_aruco(self, img, broadcast_markers_tf=True, save_pose=True):
         """
         Given an RDB image detect aruco markers. 
         ----------
@@ -234,8 +230,51 @@ class ImageConverter(object):
         out_img = Image()
         out_img = self.bridge.cv2_to_imgmsg(output_img, "bgr8")
         self.aruco_pub.publish(out_img)
+        
+        if save_pose == True:
+            current_time = rospy.get_time()
+            if marker_id not in self.marker_pose_dict:
+                    self.marker_pose_dict[marker_id] = {'trans': [], 'rot': []}
+                
+            self.marker_pose_dict[marker_id]['trans'].append(tvec)
+            self.marker_pose_dict[marker_id]['rot'].append(rvec)
+            if current_time - self.start_time > self.duration:
+                    self.save_average_poses()
+                    self.marker_pose_dict = {}
+                    self.start_time = rospy.get_time()
     
         return output_img, marker_pose_list, id_list
+
+    def save_average_poses(self):
+        avg_marker_poses = {}
+        for marker_id, poses in self.marker_pose_dict.items():
+            trans_list = np.array(poses['trans'])
+            rot_list = np.array(poses['rot'])
+
+            if len(rot_list) > 2:
+                z_axis = np.array([0, 0, 1])
+                z_rotated = np.einsum("ijk,k->ij", rot_list[:, :3, :3], z_axis)
+                z_rotated_compare = np.dot(z_rotated, z_rotated.T)
+
+                col_avg = np.average(z_rotated_compare, axis=0)
+                outlier = np.argmin(col_avg)
+
+                trans_list = np.delete(trans_list, outlier, axis=0)
+                rot_list = np.delete(rot_list, outlier, axis=0)
+
+            if len(rot_list) > 1:
+                avg_trans = np.mean(trans_list, axis=0)
+                avg_rot = utils.average_quaternions(rot_list)
+            else:
+                avg_trans = trans_list[0]
+                avg_rot = rot_list[0]
+
+            avg_marker_poses[f'marker_{marker_id}_trans'] = avg_trans
+            avg_marker_poses[f'marker_{marker_id}_rot'] = avg_rot
+
+        file_path = os.path.join('/home/kkw0418/Desktop', 'average_poses.npz')
+        np.savez(file_path, **avg_marker_poses)
+        rospy.loginfo("Saved average poses to {}".format(file_path))
 
     def make_pose(self, rvec, tvec):
         """
@@ -270,30 +309,9 @@ class ImageConverter(object):
         marker_pose.orientation.w = quat[3]
 
         return marker_pose
-            
-    def calculate_camera_to_base_transform(self, marker_pose, matrix=False):
-        """
-        Given transforms of all detected markers calculate the pose of the object.
-        ----------
-        Args:
-            id_main {int} -- id of the main marker
-        ----------
-        """
-        # Camera to EE
-        ee_marker_pose = np.dot(T_camera_to_ee, marker_pose)
-        
-        # EE to base
-        b_c_marker_pose = np.dot(T_ee_to_base, ee_marker_pose)
 
-        # Matrix to Quat
-        tvec, rvec = utils.pose_to_quat_trans(b_c_marker_pose)
 
-        if matrix:
-            return b_c_marker_pose
-        else:
-            return b_c_tvec, b_c_rvec
-
-    def calculate_transform(self, id_main, base=False):
+    def calculate_transform(self, id_main):
         """
         Given transforms of all detected markers calculate the pose of the object.
         ----------
@@ -307,11 +325,8 @@ class ImageConverter(object):
         transforms_rot = []
         transforms_trans = []
         for i, marker_id in enumerate(detected_ids):
-
-            if base:
-                trans, rot = calculate_camera_to_base_transform(marker_pose_list.poses[i])
-            else:
-                trans, rot = utils.pose_to_quat_trans(marker_pose_list.poses[i])
+            
+            trans, rot = utils.pose_to_quat_trans(marker_pose_list.poses[i])
             
             if marker_id == id_main:
                 transforms_rot.append(rot)
@@ -363,8 +378,6 @@ class ImageConverter(object):
         object_tf.header.stamp = rospy.Time.now()
         object_tf.header.frame_id = self.camera_frame_id
         object_tf.child_frame_id = self.aruco_obj_id
-        
-
         
         if self.aruco_update_rate >= 1:
             self.obj_transform = utils.quat_trans_to_pose(avg_trans, avg_rot)
@@ -429,6 +442,7 @@ def main():
 
         rospy.sleep(0.2)
         aruco_detect.calculate_transform(aruco_main_marker_id)
+
 
 if __name__ == '__main__':
     main()

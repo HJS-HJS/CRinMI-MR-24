@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import rospy
 import sys
 import os
+import yaml
 import numpy as np
+import rospy
+import rospkg
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(current_dir)
@@ -11,16 +13,29 @@ sys.path.append(current_dir)
 from robot_interface.robotSDK_interface import *
 from robot_interface.robotGripper_interface import *
 from camera_interface.camera_interface import CameraInterface
+from calibration_interface.calibration_interface import CalibrationInterface
 
 class Test(object):
     
     def __init__(self):
-        camera interface test
-        camera = CameraInterface()
+
+        # get parameter
+        config_file = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config', 'workspace.yaml'))
+        self.workspace_config     = rospy.get_param("~robot")
+
+        # ========= camera interface test =========
+        calibration = CalibrationInterface(self.workspace_config)
         rospy.loginfo('ready')
+        print(calibration.matrix)
+        # ========= camera interface test END =========
+
+        # ========= camera interface test =========
+        camera = CameraInterface()
+        rospy.loginfo('Camera Interface Ready')
         rospy.sleep(1)
         camera.show_intrinsic()
         camera.vis_image()
+        # ========= camera interface test END =========
 
         # ========= RB10 interface test =========
         home_joint_array = [-np.pi/2.0, 0.0, np.pi/2.0, 0.0, np.pi/2.0, 37.0*np.pi/180.0]

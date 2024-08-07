@@ -128,3 +128,10 @@ class CameraInterface(object):
         """
         rospy.loginfo(self.color_cam_intr)
         rospy.loginfo(self.depth_cam_intr)
+
+
+if __name__ == '__main__':
+    module = CameraInterface()
+    rospy.sleep(2)
+    module.vis_image()
+    module.show_intrinsic()

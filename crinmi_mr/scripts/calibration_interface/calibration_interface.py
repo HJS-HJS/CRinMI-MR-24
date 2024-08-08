@@ -17,8 +17,15 @@ class CalibrationInterface(object):
             cfg = json.load(f)
 
         # camera matrix from eef
-        self.matrix=np.eye(4)
-        self.matrix[:3,3] = np.array(cfg["calibration_data"] ) * -1
+        self.m_gripper2cam = np.eye(4)
+        self.m_gripper2cam[:3,3] = np.array(cfg["calibration_data"] ) * -1 / 1000
+
+        self.m_eef2gripper = np.array([
+          [-1.0, 0.0, 0.0, 0.0],
+          [0.0, 0.0, -1.0, 0.0],
+          [0.0, -1.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0, 1.0],  
+        ])
 
 if __name__ == '__main__':
     module = CalibrationInterface(1)

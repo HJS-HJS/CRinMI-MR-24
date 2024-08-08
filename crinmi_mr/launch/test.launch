@@ -3,5 +3,7 @@
 
   <node name="$(arg node_name)" pkg="crinmi_mr" type="test_node.py" output="screen" >
     <rosparam command="load" file="$(find crinmi_mr)/config/workspace.yaml" />
+    <rosparam command="load" file="$(find crinmi_mr)/config/robot_ip.yaml" />
+    <rosparam command="load" file="$(find crinmi_mr)/config/robot_pose/robot_pose.yaml" />
   </node>
 </launch>

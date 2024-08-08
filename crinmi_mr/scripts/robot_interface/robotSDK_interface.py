@@ -9,12 +9,13 @@ from dataclasses import dataclass
 
 robotSDK_dir = os.path.dirname(os.path.realpath(__file__)) + '/ketirobotsdk'
 sys.path.append(robotSDK_dir)
+# setLibPath(os.path.dirname(os.path.realpath(__file__)) + '/ketirobotsdk/librobotsdk.so')
 
 from sdk import *
 
 class RobotControlServer():
 
-    def __init__(self, robot_ip='115.151.45.1'):
+    def __init__(self, robot_ip):
         """ Initialize robot connection using given robot_ip.
         Args:
             'str': RB10 robot ip 
@@ -24,7 +25,7 @@ class RobotControlServer():
         
         # robot connection check
         robot_connected = self.rb10.RobotConnect() 
-        assert robot_connected is not True, "robot connection is not established!!"
+        assert robot_connected is True, "robot connection is not established!!"
 
         # Set default robot velocity
         self.rb10.SetVelocity(10)
@@ -40,7 +41,6 @@ class RobotControlServer():
         """
         robotInfo = self.rb10.RobotInfo()
         # update current robot state: '1' indicates state "Wait" & '2' indicates "Moving"
-        rospy.loginfo("update current robot state")
         if robotInfo.State == 1:
             self.wait = True
         else:
@@ -62,11 +62,12 @@ class RobotControlServer():
         """ 
             date robot joint, EE pose, moving status (update frequency: 10Hz)
         """
-        robotInfo = self.rb10.RobotInfo()
-        print("current_state : {0}".format(self.wait))
-        print("current_joint : {0}".format(self.current_joint))
-        print("current_pose_matrix : ")
-        print(self.current_pose_matrix)
+        # robotInfo = self.rb10.RobotInfo()
+        # print("current_state : {0}".format(self.wait))
+        # print("current_joint : {0}".format(self.current_joint))
+        # print("current_pose_matrix : ")
+        # print(self.current_pose_matrix)
+        return self.current_pose_matrix
         
     def RobotMoveJ(self, joint_array):
         """ Move each robot joints using sdk libraray
@@ -81,7 +82,7 @@ class RobotControlServer():
         if self.wait is True:
             self.rb10.movej(joint_array)
     
-    def RobotMoveL(self, R, t):
+    def RobotMoveL(self, H):
         """ Move robot End effector with cartesian motion using sdk libraray
 
         Args:
@@ -89,53 +90,27 @@ class RobotControlServer():
             't': translation matrix relative to robot base frame, input must be type 'numpy.ndarray'
         """
         # check rotation, translation matrix type & length
-        assert isinstance(R, np.ndarray), "MoveL rotation value must be numpy type!!"
-        assert isinstance(t, np.ndarray), "MoveL translation value must be numpy type!!"
-        assert R.shape == (3,3), "MoveL rotation matrix must be size 3x3!!"
-        assert t.shape == (3,), "MoveL translation matrix must be size 3x1!!"
-
-        # Create 4x4 homogenous matrix
-        H = np.eye(4)
-        H[:3, :3] = R
-        H[:3, 3] = t
+        assert isinstance(H, np.ndarray), "MoveL homogenous matrix value must be numpy type!!"
+        assert H.shape == (4,4), "MoveL rotation matrix must be size 3x3!!"
 
         # Adjust 4x4 numpy matrix to fit into "movel" input type(1-dim array)
         flatten_H = [element for row in H.tolist() for element in row]
         if self.wait is True:
             self.rb10.movel(0, flatten_H)
 
-    def RobotMoveB(self, R_array, t_array):
+    def RobotMoveB(self, H_array):
         """ Move robot End effector with cartesian motion with blending using sdk libraray
 
         Args:
-            `R_array`: rotation matrix relative to robot base frame consecutively, input must be type 'numpy.ndarray'
-            `t_array`: translation matrix relative to robot base frame consecutively, input must be type 'numpy.ndarray'
-
-        Args Example:
-            R_array = np.stack((np.eye(3), np.eye(3)*3), axis=0)
-            t_array = np.stack((np.arange(3), np.arange(3)), axis=0)
+            `H_array`: rotation matrix relative to robot base frame consecutively, input must be type 'numpy.ndarray'
         """
 
         # check rotation, translation matrix type & length
-        assert isinstance(R_array, np.ndarray), "MoveB rotation array value must be numpy type!!"
-        assert isinstance(t_array, np.ndarray), "MoveB translation array value must be numpy type!!"
-
-        # check rotation, translation matrix length
-        if len(R_array) != len(t_array):
-            rospy.loginfo("rotation matrix and translation matrix length is not same!!")
-            return
-        
-        # Adjust 4x4 numpy matrix array to fit into "moveb" input type
-        H_array = np.empty((4,4), dtype=float)
-        for i in range(len(R_array)):
-            H = np.eye(4)
-            H[:3,:3] = R_array[i]
-            H[:3, 3] = t_array[i]
-            H_array = np.stack((H_array, H), axis=0)
+        assert isinstance(H_array, np.ndarray), "MoveB homogenous matrix array value must be numpy type!!"
 
         # internal code of sdk ('moveb') is little-bit changed because of input     
         if self.wait is True:
-            self.rb10.moveb(0, 0.02, 5, H_array)
+            self.rb10.moveb(0, 0.02, 5, *H_array.reshape(-1,16).tolist())
 
     def SetVelocity(self, velocity):
         """ Set robot default speed for moving  

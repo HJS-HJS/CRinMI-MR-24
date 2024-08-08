@@ -2,6 +2,8 @@
 from operator import mod
 import os
 import ctypes
+from sys import argv
+import rospkg
 # from psutil import cpu_times_percent
 TestDummy= 0
 RB10    =1
@@ -13,7 +15,7 @@ Base=0
 TCP=1
 
 module=None
-file_path= f'/home/jaeseogwon/catkin_ws/src/CRinMI/scripts/ketirobotsdk/librobotsdk.so'
+file_path = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'scripts', 'robot_interface', 'ketirobotsdk','librobotsdk.so'))
 if os.path.isfile(file_path) is True :
     module=ctypes.cdll.LoadLibrary(file_path)
     
@@ -195,35 +197,32 @@ class Robot:
         arg_arr=[self.ID,args[0],(ctypes.c_double*len(args[1]))(*args[1])]
         module.movel(*arg_arr)
 
-
     def moveb(self,*args):
         err=0
         args_arr=[self.ID,args[0],args[1],len(args)-3]
         module.moveb.argtypes=[ctypes.c_int,ctypes.c_double,ctypes.c_double,ctypes.c_double]
-        
-        for H in args[4]:
-            for i in range(len(H)):
-                if(len(H[i])==16) :
-                    args_arr.append((ctypes.c_double*len(H[i]))(*H[i]))
-                    module.moveb.argtypes.append(ctypes.POINTER(ctypes.c_double))
-                else:
-                    err=i 
-                    break
-        
-        # for i in range(3,len(args)):
-        #     if(len(args[i])==16) :
-        #         args_arr.append((ctypes.c_double*len(args[i]))(*args[i]))
-        #         module.moveb.argtypes.append(ctypes.POINTER(ctypes.c_double))
+                
+        print("args_arr")
+        print(args_arr)
+        print("len(args)")
+        print(len(args))
+        for i in range(3,len(args)):
+            print("a")
+            if(len(args[i])==16) :
+                print("ok")
+                args_arr.append((ctypes.c_double*len(args[i]))(*args[i]))
+                module.moveb.argtypes.append(ctypes.POINTER(ctypes.c_double))
 
-        #     else:
-        #         err=i 
-        #         break
-            
+            else:
+                print("failed")
+                err=i 
+                break
+        print("args_arr")
+        print(args_arr)
         if err!=0 :
             print('CMD Input',err,'Length Not match')
         else : 
             module.moveb(*args_arr)
-            
             
     def movec(self,*args):
         err=0

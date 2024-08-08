@@ -6,8 +6,8 @@ import numpy as np
 
 import rospy
 import rospkg
-import tf2_ros
 import tf.transformations as tf
+import tf2_ros
 from geometry_msgs.msg import TransformStamped
 
 class Crinmi_TransformStamped(TransformStamped):
@@ -36,8 +36,8 @@ class Crinmi_TransformStamped(TransformStamped):
             rotation = np.deg2rad(np.array(rotation))
         if len(rotation) == 3:
             rotation = tf.quaternion_from_euler(rotation[0], rotation[1], rotation[2], axes = 'rxyz')
-        else:
-            rotation = tf.quaternion_from_matrix(rotation[:3,:3])
+        elif rotation.size == 16:
+            rotation = tf.quaternion_from_matrix(rotation)
         self.transform.rotation.x = rotation[0]
         self.transform.rotation.y = rotation[1]
         self.transform.rotation.z = rotation[2]
@@ -49,7 +49,7 @@ class Crinmi_TransformStamped(TransformStamped):
 
 class TFInterface(object):
     def __init__(self, robot_id:int = 1):
-        rospy.loginfo("calibration interface imported")
+        rospy.loginfo("tf interface imported")
         self.broadcaster = tf2_ros.TransformBroadcaster()
         self.static_broadcaster = tf2_ros.StaticTransformBroadcaster()
         
@@ -101,27 +101,47 @@ class TFInterface(object):
             )
         
         self.static_broadcaster.sendTransform([self.tf_eef2gripper, self.tf_gripper2cam])
+        duration = rospy.Duration(0.1)
+        timer = rospy.Timer(duration, self.broadcast)
 
-    def broadcast(self):
-        self.tf_cam2point.header.stamp = rospy.Time.now()
-        self.tf_base2eef.header.stamp = rospy.Time.now()
-        self.broadcaster.sendTransform([self.tf_base2eef, self.tf_cam2point])
-    
+        self.buffer = tf2_ros.Buffer()
+        listener = tf2_ros.TransformListener(self.buffer)
+
     def base2eef(self, pose, mm = True, deg = True):
-        if len(pose) == 6:
+        if len(pose) >= 6:
             self.tf_base2eef.t(pose[0:3], mm)
-            self.tf_base2eef.r(pose[3:6], deg)
+            self.tf_base2eef.r(pose[3:len(pose)], deg)
         else:
             self.tf_base2eef.t(pose, mm)
             self.tf_base2eef.r(pose, False)
 
     def cam2point(self, pose, mm = True, deg = True):
-        if len(pose) == 6:
+        if len(pose) >= 6:
             self.tf_cam2point.t(pose[0:3], mm)
-            self.tf_cam2point.r(pose[3:6], deg)
+            self.tf_cam2point.r(pose[3:len(pose)], deg)
         else:
             self.tf_cam2point.t(pose, mm)
             self.tf_cam2point.r(pose, False)
+
+    def broadcast(self, event):
+        self.tf_base2eef.header.stamp = rospy.Time.now()
+        self.tf_cam2point.header.stamp = rospy.Time.now()
+        return self.broadcaster.sendTransform([self.tf_base2eef, self.tf_cam2point])
+    
+    def matrix(self, target, source):
+        _stamp = self.buffer.lookup_transform(target_frame=target, source_frame=source, time=rospy.Time())
+        _matrix = tf.quaternion_matrix([
+            _stamp.transform.rotation.x,
+            _stamp.transform.rotation.y,
+            _stamp.transform.rotation.z,
+            _stamp.transform.rotation.w,
+        ])
+        _matrix[:3,3] = np.array([
+            _stamp.transform.translation.x, 
+            _stamp.transform.translation.y, 
+            _stamp.transform.translation.z
+            ])
+        return _matrix
 
 if __name__ == '__main__':
     rospy.init_node("tf2_broadcaster")

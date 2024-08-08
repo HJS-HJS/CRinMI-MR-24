@@ -26,7 +26,7 @@ class Test(object):
         self.ip_config            = rospy.get_param("~robot_ip")[str(self.workspace_config)]
         self.pose_config          = rospy.get_param("~robot_pose")
 
-        calibration = TFInterface(self.workspace_config)
+        tf_interface = TFInterface(self.workspace_config)
 
         # ========= RB10 interface test =========
         # robot_server = RobotControlServer(self.ip_config["robot"])
@@ -58,9 +58,9 @@ class Test(object):
 
         # rospy.sleep(1)
         # m_base2eef = robot_server.RecvRobotState()
-        # m_eef2gripper = calibration.m_eef2gripper
+        # m_eef2gripper = tf_interface.m_eef2gripper
         # m_eef2gripper[:3,:3] = rotation(-37, 0, 90 ,axes = "ryzx")
-        # m_gripper2cam = calibration.m_gripper2cam
+        # m_gripper2cam = tf_interface.m_gripper2cam
         # m_cam2point = pose2matrix(self.pose_config["marker_pose"][0], mm=True)
         # m_base2point = m_base2eef @ m_eef2gripper @ m_gripper2cam @ m_cam2point
         # m_base2point[:3,:3] = rotation(90, 0, 37)

@@ -66,11 +66,30 @@ class TFInterface(object):
         ])
 
         # tf
-        self.tf_base2eef  = Crinmi_TransformStamped("base_link", "eef", [0, 0, 0], [0, 0, 0])
-        self.tf_cam2point = Crinmi_TransformStamped("camera_base", "point", [], [])
+        self.tf_base2eef  = Crinmi_TransformStamped(
+            "base_link", "eef", 
+            [0, 0, 0], 
+            [0, 0, 0],
+            mm = True, deg = True
+            )
+        self.tf_cam2point = Crinmi_TransformStamped(
+            "camera_base", "point",
+            [0, 0, 0], [0, 0, 0],
+            mm = True, deg = True
+            )
         # static tf
-        self.tf_eef2gripper = Crinmi_TransformStamped("eef", "gripper", [0, 0, 0], [90, 0, 37])
-        self.tf_gripper2cam = Crinmi_TransformStamped("gripper", "camera_base", np.array(cfg["calibration_data"] ) * -1, [0, 0, 0], mm = False, deg = True)
+        self.tf_eef2gripper = Crinmi_TransformStamped(
+            "eef", "gripper", 
+            [0, 0, 0], 
+            [90, 0, 37],
+            mm = True, deg = True
+            )
+        self.tf_gripper2cam = Crinmi_TransformStamped(
+            "gripper", "camera_base", 
+            np.array(cfg["calibration_data"] ) * -1, [0, 0, 0], 
+            mm = False, deg = True
+            )
+        
         self.static_broadcaster.sendTransform([self.tf_eef2gripper, self.tf_gripper2cam])
 
     def broadcast(self):

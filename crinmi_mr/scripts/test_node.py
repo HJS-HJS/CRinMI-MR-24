@@ -26,7 +26,10 @@ class Test(object):
         self.ip_config            = rospy.get_param("~robot_ip")[str(self.workspace_config)]
         self.pose_config          = rospy.get_param("~robot_pose")
 
-        tf_interface = TFInterface(self.workspace_config)
+        self.tf_interface = TFInterface(self.workspace_config)
+        # tf_interface.base2eef(robot_server.RecvRobotState(), mm = True, deg = False)
+        self.tf_interface.base2eef(self.pose_config["parts_capture_pose"][0], mm = False, deg = True)
+        self.tf_interface.cam2point(self.pose_config["marker_pose"][0], mm = True, deg = True)
 
         # ========= RB10 interface test =========
         # robot_server = RobotControlServer(self.ip_config["robot"])
@@ -77,13 +80,17 @@ class Test(object):
         # while not robot_server.wait:
         #     rospy.sleep(1)
 
-
+    def SpinOnce(self):
+        self.tf_interface.broadcast()
     
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')
     server = Test()
     
-    rospy.spin()
+    rate = rospy.Rate(10)  # 20hz
+    while not rospy.is_shutdown():
+        server.SpinOnce()
+        rate.sleep()
 
     try:
         pass

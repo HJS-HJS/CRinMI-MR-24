@@ -25,6 +25,8 @@ class Crinmi_TransformStamped(TransformStamped):
     def t(self, transform, mm = True):
         if not mm:
             transform = np.array(transform) / 1000
+        if len(transform) != 3:
+            transform = np.array(transform)[:3,3]
         self.transform.translation.x = transform[0]
         self.transform.translation.y = transform[1]
         self.transform.translation.z = transform[2]
@@ -34,6 +36,8 @@ class Crinmi_TransformStamped(TransformStamped):
             rotation = np.deg2rad(np.array(rotation))
         if len(rotation) == 3:
             rotation = tf.quaternion_from_euler(rotation[0], rotation[1], rotation[2], axes = 'rxyz')
+        else:
+            rotation = tf.quaternion_from_matrix(rotation[:3,:3])
         self.transform.rotation.x = rotation[0]
         self.transform.rotation.y = rotation[1]
         self.transform.rotation.z = rotation[2]
@@ -67,41 +71,57 @@ class TFInterface(object):
 
         # tf
         self.tf_base2eef  = Crinmi_TransformStamped(
-            "base_link", "eef", 
-            [0, 0, 0], 
-            [0, 0, 0],
+            parent_id = "base_link", 
+            child_id = "eef", 
+            transform = [0, 0, 0], 
+            rotation = [0, 0, 0],
             mm = True, deg = True
             )
         self.tf_cam2point = Crinmi_TransformStamped(
-            "camera_base", "point",
-            [0, 0, 0], [0, 0, 0],
+            parent_id = "camera_link", 
+            child_id = "point",
+            transform = [0, 0, 0],
+            rotation = [0, 0, 0],
             mm = True, deg = True
             )
         # static tf
         self.tf_eef2gripper = Crinmi_TransformStamped(
-            "eef", "gripper", 
-            [0, 0, 0], 
-            [90, 0, 37],
+            parent_id = "eef", 
+            child_id = "gripper", 
+            transform = [0, 0, 0], 
+            rotation = [90, 0, 37],
             mm = True, deg = True
             )
         self.tf_gripper2cam = Crinmi_TransformStamped(
-            "gripper", "camera_base", 
-            np.array(cfg["calibration_data"] ) * -1, [0, 0, 0], 
+            parent_id = "gripper", 
+            child_id = "camera_link", 
+            transform = np.array(cfg["calibration_data"] ) * -1, 
+            rotation = [0, 0, 0], 
             mm = False, deg = True
             )
         
         self.static_broadcaster.sendTransform([self.tf_eef2gripper, self.tf_gripper2cam])
 
     def broadcast(self):
+        self.tf_cam2point.header.stamp = rospy.Time.now()
+        self.tf_base2eef.header.stamp = rospy.Time.now()
         self.broadcaster.sendTransform([self.tf_base2eef, self.tf_cam2point])
     
-    def base2eef(self, pose):
-        self.tf_base2eef.t(pose[0:3])
-        self.tf_base2eef.r(pose[3:6])
+    def base2eef(self, pose, mm = True, deg = True):
+        if len(pose) == 6:
+            self.tf_base2eef.t(pose[0:3], mm)
+            self.tf_base2eef.r(pose[3:6], deg)
+        else:
+            self.tf_base2eef.t(pose, mm)
+            self.tf_base2eef.r(pose, False)
 
-    def cam2point(self, pose):
-        self.tf_cam2point.t(pose[0:3])
-        self.tf_cam2point.r(pose[3:6])
+    def cam2point(self, pose, mm = True, deg = True):
+        if len(pose) == 6:
+            self.tf_cam2point.t(pose[0:3], mm)
+            self.tf_cam2point.r(pose[3:6], deg)
+        else:
+            self.tf_cam2point.t(pose, mm)
+            self.tf_cam2point.r(pose, False)
 
 if __name__ == '__main__':
     rospy.init_node("tf2_broadcaster")

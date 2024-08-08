@@ -13,7 +13,7 @@ sys.path.append(current_dir)
 from robot_interface.robotSDK_interface import *
 from robot_interface.robotGripper_interface import *
 from camera_interface.camera_interface import CameraInterface
-from calibration_interface.calibration_interface import CalibrationInterface
+from tf_interface.tf_interface import TFInterface
 from utils.utils import *
 
 class Test(object):
@@ -26,7 +26,7 @@ class Test(object):
         self.ip_config            = rospy.get_param("~robot_ip")[str(self.workspace_config)]
         self.pose_config          = rospy.get_param("~robot_pose")
 
-        calibration = CalibrationInterface(self.workspace_config)
+        calibration = TFInterface(self.workspace_config)
 
         # ========= RB10 interface test =========
         robot_server = RobotControlServer(self.ip_config["robot"])

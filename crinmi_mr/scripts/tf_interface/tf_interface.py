@@ -7,7 +7,7 @@ import numpy as np
 import rospy
 import rospkg
 
-class CalibrationInterface(object):
+class TFInterface(object):
     def __init__(self, robot_id:int = 1):
         rospy.loginfo("calibration interface imported")
 
@@ -28,4 +28,4 @@ class CalibrationInterface(object):
         ])
 
 if __name__ == '__main__':
-    module = CalibrationInterface(1)
+    module = TFInterface(1)

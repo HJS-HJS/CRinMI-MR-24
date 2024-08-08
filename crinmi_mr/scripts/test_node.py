@@ -29,8 +29,8 @@ class Test(object):
         calibration = TFInterface(self.workspace_config)
 
         # ========= RB10 interface test =========
-        robot_server = RobotControlServer(self.ip_config["robot"])
-        rospy.loginfo('Robot Control Server Ready')
+        # robot_server = RobotControlServer(self.ip_config["robot"])
+        # rospy.loginfo('Robot Control Server Ready')
         
         # # test1 (start from arbitrary pose & come back to home position)
         # rospy.loginfo('Move to Home pose using MoveJ')
@@ -39,32 +39,32 @@ class Test(object):
         # while not robot_server.wait:
         #     rospy.sleep(1)
 
-        robot_server.SetVelocity(10)
+        # robot_server.SetVelocity(10)
 
-        rospy.sleep(1)
-        # # test2 (start from home pose & Move cartesian motion)
-        rospy.loginfo('Move to specific pose using MoveL')
-        for pose in self.pose_config["parts_capture_pose"]:
-            H = pose2matrix(pose)
-            robot_server.RobotMoveL(H)
-            rospy.sleep(1)
-            while not robot_server.wait:
-                rospy.sleep(1)
+        # rospy.sleep(1)
+        # # # test2 (start from home pose & Move cartesian motion)
+        # rospy.loginfo('Move to specific pose using MoveL')
+        # for pose in self.pose_config["parts_capture_pose"]:
+        #     H = pose2matrix(pose)
+        #     robot_server.RobotMoveL(H)
+        #     rospy.sleep(1)
+        #     while not robot_server.wait:
+        #         rospy.sleep(1)
 
+        ## gripper set ##
         # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
-        
         # gripper_server.GripperMoveGrip()
         # rospy.sleep(5)
 
-        rospy.sleep(1)
-        m_base2eef = robot_server.RecvRobotState()
-        m_eef2gripper = calibration.m_eef2gripper
-        m_eef2gripper[:3,:3] = rotation(-37, 0, 90 ,axes = "ryzx")
-        m_gripper2cam = calibration.m_gripper2cam
-        m_cam2point = pose2matrix(self.pose_config["marker_pose"][0], mm=True)
-        m_base2point = m_base2eef @ m_eef2gripper @ m_gripper2cam @ m_cam2point
-        m_base2point[:3,:3] = rotation(90, 0, 37)
-        m_base2point[3][2] += 1.5
+        # rospy.sleep(1)
+        # m_base2eef = robot_server.RecvRobotState()
+        # m_eef2gripper = calibration.m_eef2gripper
+        # m_eef2gripper[:3,:3] = rotation(-37, 0, 90 ,axes = "ryzx")
+        # m_gripper2cam = calibration.m_gripper2cam
+        # m_cam2point = pose2matrix(self.pose_config["marker_pose"][0], mm=True)
+        # m_base2point = m_base2eef @ m_eef2gripper @ m_gripper2cam @ m_cam2point
+        # m_base2point[:3,:3] = rotation(90, 0, 37)
+        # m_base2point[3][2] += 1.5
 
         # robot_server.RobotMoveL(m_base2point)
         # rospy.sleep(1)

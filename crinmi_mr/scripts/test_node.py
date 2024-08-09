@@ -21,20 +21,40 @@ class Test(object):
     def __init__(self):
 
         # get parameter
-        config_file = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config', 'workspace.yaml'))
+        config_file = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config'))
         self.workspace_config     = rospy.get_param("~robot")
         self.ip_config            = rospy.get_param("~robot_ip")[str(self.workspace_config)]
         self.pose_config          = rospy.get_param("~robot_pose")
-
-        self.tf_interface = TFInterface(self.workspace_config)
-        # tf_interface.base2eef(robot_server.RecvRobotState(), mm = True, deg = False)
-        self.tf_interface.base2eef(self.pose_config["parts_capture_pose"][0], mm = False, deg = True)
-        self.tf_interface.cam2point(self.pose_config["marker_pose"][0], mm = True, deg = True)
-
+        
         # ========= RB10 interface test =========
         # robot_server = RobotControlServer(self.ip_config["robot"])
         # rospy.loginfo('Robot Control Server Ready')
         
+        # ========= tf marker posision test =========
+        # temp marker_set for test
+        self.marker_set           = np.load(config_file + "/capture_pose1.npz")
+        marker = np.hstack((self.marker_set["marker_37_trans.npy"], [0, 0, 0]))
+        # marker = self.pose_config["marker_pose"][0]
+
+        # temp robot state for test
+        robot_state = np.array([
+            [0.54718528, 0.05478036, 0.8352169, 0.20298141],
+            [0.8358647, 0.01645447, -0.54868885, -0.65046209],
+            [-0.04380043, 0.99836284, -0.03678533, 0.75620735],
+            [0, 0, 0 ,1],
+        ])
+        # robot_state = robot_server.RecvRobotState()
+
+
+        self.tf_interface = TFInterface(self.workspace_config)
+        self.tf_interface.base2eef(robot_state, mm = True, deg = True)
+        self.tf_interface.cam2marker(marker, mm = True, deg = True)
+        rospy.sleep(1)
+        marker_pose = self.tf_interface.matrix(target="base_link", source="marker")
+        print("base_link to marker")
+        print(marker_pose)
+
+
         # # test1 (start from arbitrary pose & come back to home position)
         # rospy.loginfo('Move to Home pose using MoveJ')
         # robot_server.SetVelocity(20)
@@ -54,39 +74,23 @@ class Test(object):
         #     while not robot_server.wait:
         #         rospy.sleep(1)
 
-        ## gripper set ##
+        # gripper set ##
         # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
         # gripper_server.GripperMoveGrip()
         # rospy.sleep(5)
 
-        # rospy.sleep(1)
-        # m_base2eef = robot_server.RecvRobotState()
-        # m_eef2gripper = tf_interface.m_eef2gripper
-        # m_eef2gripper[:3,:3] = rotation(-37, 0, 90 ,axes = "ryzx")
-        # m_gripper2cam = tf_interface.m_gripper2cam
-        # m_cam2point = pose2matrix(self.pose_config["marker_pose"][0], mm=True)
-        # m_base2point = m_base2eef @ m_eef2gripper @ m_gripper2cam @ m_cam2point
-        # m_base2point[:3,:3] = rotation(90, 0, 37)
-        # m_base2point[3][2] += 1.5
-
-        # robot_server.RobotMoveL(m_base2point)
-        # rospy.sleep(1)
-        # while not robot_server.wait:
-        #     rospy.sleep(1)
-
-        # m_base2point[3][2] -= 1.0
-        # robot_server.RobotMoveL(m_base2point)
+        # robot_server.RobotMoveL(m_base2marker)
         # rospy.sleep(1)
         # while not robot_server.wait:
         #     rospy.sleep(1)
 
     def SpinOnce(self):
-        self.tf_interface.broadcast()
+        # self.tf_interface.broadcast()
+        pass
     
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')
     server = Test()
-    
     rate = rospy.Rate(10)  # 20hz
     while not rospy.is_shutdown():
         server.SpinOnce()

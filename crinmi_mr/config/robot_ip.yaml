@@ -10,4 +10,7 @@ robot_ip:
   "3":
     robot:    192.168.3.103
     gripper:  192.168.3.113
-    
+  
+  "simulator":
+    robot:    127.0.0.1
+    gripper:  127.0.0.1

@@ -57,18 +57,7 @@ class TFInterface(object):
         # Load configuation file
         with open(json_file,'r') as f:
             cfg = json.load(f)
-
-        # camera matrix from eef
-        self.m_gripper2cam = np.eye(4)
-        self.m_gripper2cam[:3,3] = np.array(cfg["calibration_data"] ) * -1 / 1000
-
-        self.m_eef2gripper = np.array([
-          [-1.0, 0.0, 0.0, 0.0],
-          [0.0, 0.0, -1.0, 0.0],
-          [0.0, -1.0, 0.0, 0.0],
-          [0.0, 0.0, 0.0, 1.0],  
-        ])
-
+            
         # tf
         self.tf_base2eef  = Crinmi_TransformStamped(
             parent_id = "base_link", 
@@ -77,9 +66,9 @@ class TFInterface(object):
             rotation = [0, 0, 0],
             mm = True, deg = True
             )
-        self.tf_cam2point = Crinmi_TransformStamped(
+        self.tf_cam2marker = Crinmi_TransformStamped(
             parent_id = "camera_link", 
-            child_id = "point",
+            child_id = "marker",
             transform = [0, 0, 0],
             rotation = [0, 0, 0],
             mm = True, deg = True
@@ -89,14 +78,15 @@ class TFInterface(object):
             parent_id = "eef", 
             child_id = "gripper", 
             transform = [0, 0, 0], 
-            rotation = [90, 0, 37],
+            rotation = [90, 0, 90-37],
             mm = True, deg = True
             )
         self.tf_gripper2cam = Crinmi_TransformStamped(
             parent_id = "gripper", 
             child_id = "camera_link", 
-            transform = np.array(cfg["calibration_data"] ) * -1, 
-            rotation = [0, 0, 0], 
+            # transform = np.array(cfg["calibration_data"] ) * -1, 
+            transform = cfg["calibration_data"], 
+            rotation = [0, 0, -180], 
             mm = False, deg = True
             )
         
@@ -115,18 +105,18 @@ class TFInterface(object):
             self.tf_base2eef.t(pose, mm)
             self.tf_base2eef.r(pose, False)
 
-    def cam2point(self, pose, mm = True, deg = True):
+    def cam2marker(self, pose, mm = True, deg = True):
         if len(pose) >= 6:
-            self.tf_cam2point.t(pose[0:3], mm)
-            self.tf_cam2point.r(pose[3:len(pose)], deg)
+            self.tf_cam2marker.t(pose[0:3], mm)
+            self.tf_cam2marker.r(pose[3:len(pose)], deg)
         else:
-            self.tf_cam2point.t(pose, mm)
-            self.tf_cam2point.r(pose, False)
+            self.tf_cam2marker.t(pose, mm)
+            self.tf_cam2marker.r(pose, False)
 
     def broadcast(self, event):
         self.tf_base2eef.header.stamp = rospy.Time.now()
-        self.tf_cam2point.header.stamp = rospy.Time.now()
-        return self.broadcaster.sendTransform([self.tf_base2eef, self.tf_cam2point])
+        self.tf_cam2marker.header.stamp = rospy.Time.now()
+        return self.broadcaster.sendTransform([self.tf_base2eef, self.tf_cam2marker])
     
     def matrix(self, target, source):
         _stamp = self.buffer.lookup_transform(target_frame=target, source_frame=source, time=rospy.Time())
@@ -146,3 +136,4 @@ class TFInterface(object):
 if __name__ == '__main__':
     rospy.init_node("tf2_broadcaster")
     module = TFInterface(1)
+    

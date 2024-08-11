@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import pickle
 
 import rospy
 from sensor_msgs.msg import Image, CameraInfo
@@ -129,9 +130,36 @@ class CameraInterface(object):
         rospy.loginfo(self.color_cam_intr)
         rospy.loginfo(self.depth_cam_intr)
 
+    def save_image(self, name):
+        cv2.imwrite('../../image/' + name + '_image.jpg', self.color_img)
+        cv2.imwrite('../../image/' + name + '_depth.jpg', self.depth_img)
+        with open('../../image/' + name + '_topic.p', 'wb') as f:
+            pickle.dump([self.color_img_msg,
+                         self.depth_img_msg,
+                         self.color_cam_info_msg,
+                         self.depth_cam_info_msg,
+                         ], f)
+        
+    def read_image(self, name):
+        with open('../../image/' + name + '_topic.p', 'rb') as f:
+            topic_list = pickle.load(f)
+            self.color_img_msg = topic_list[0]
+            self.depth_img_msg = topic_list[1]
+            self.color_cam_info_msg = topic_list[2]
+            self.depth_cam_info_msg = topic_list[3]
+
+
 
 if __name__ == '__main__':
+    rospy.init_node('camera_interface')
     module = CameraInterface()
-    rospy.sleep(2)
+    rospy.loginfo('[Crinmi MR] Save/Read Image')
+    name = "1"
+    rospy.spin()
+    module.save_image(name)
+    # module.read_image(name)
+    rospy.loginfo('[Crinmi MR] vis Image')
     module.vis_image()
+    rospy.loginfo('[Crinmi MR] Show Intrinsic Data')
     module.show_intrinsic()
+    rospy.loginfo('[Crinmi MR] Node Closed')

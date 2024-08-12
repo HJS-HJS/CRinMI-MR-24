@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import os
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
@@ -9,6 +10,8 @@ import matplotlib.pyplot as plt
 import pickle
 
 import rospy
+import rospkg
+
 from sensor_msgs.msg import Image, CameraInfo
 
 class CameraInterface(object):
@@ -123,6 +126,56 @@ class CameraInterface(object):
         intr = np.array(self.depth_cam_info_msg.K)
         return intr.reshape(3, 3)
 
+    def save_image(self, name):
+        save_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'image'))
+        cv2.imwrite(save_dir + '/' + name + '_image.jpg', self.save_color_img)
+        cv2.imwrite(save_dir + '/' + name + '_depth.jpg', self.depth_img)
+        with open(save_dir + name + '_topic.p', 'wb') as f:
+            pickle.dump([self.color_img_msg,
+                         self.depth_img_msg,
+                         self.color_cam_info_msg,
+                         self.depth_cam_info_msg,
+                         ], f)
+        
+    def read_image(self, name):
+        save_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'image'))
+        with open(save_dir + '/' + name + '_topic.p', 'rb') as f:
+            topic_list = pickle.load(f)
+            self.color_img_msg = topic_list[0]
+            self.depth_img_msg = topic_list[1]
+            self.color_cam_info_msg = topic_list[2]
+            self.depth_cam_info_msg = topic_list[3]
+    
+    @staticmethod
+    def depth2pcd(depth: np.array, intr: np.array, extr: np.array) ->np.array:
+        """Convert depth image to pointcloud data.
+
+        Args:
+            depth_image (np.array): (H, W) depth image to convert.
+            intr (np.array): (3, 3) camera intrinsic matrix.
+            extr (np.array): (3, 3) camera extrinsic matrix.
+
+        Returns:
+            np.array: (N, 3) pointcloud data array converted from depth image
+        """
+        height, width = depth.shape
+        row_indices = np.arange(height)
+        col_indices = np.arange(width)
+        pixel_grid = np.meshgrid(col_indices, row_indices)
+        pixels = np.c_[pixel_grid[0].flatten(), pixel_grid[1].flatten()].T
+        pixels_homog = np.r_[pixels, np.ones([1, pixels.shape[1]])]
+        depth_arr = np.tile(depth.flatten(), [3, 1])
+        point_cloud = depth_arr * np.linalg.inv(intr).dot(pixels_homog)
+        point_cloud = point_cloud.transpose()
+
+        return (np.matmul(extr[:3,:3], point_cloud[:,:3].T) + extr[:3,3].reshape(3,1)).T
+
+    def show_intrinsic(self):
+        """_summary_
+        """
+        rospy.loginfo(self.color_cam_intr)
+        rospy.loginfo(self.depth_cam_intr)
+
     def vis_image(self):
         """_summary_
         """
@@ -133,42 +186,38 @@ class CameraInterface(object):
         depth.imshow(self.depth_img)
         plt.show()
 
-    def show_intrinsic(self):
+    def pcd(self, extr):
         """_summary_
         """
-        rospy.loginfo(self.color_cam_intr)
-        rospy.loginfo(self.depth_cam_intr)
+        return self.depth2pcd(self.depth_img, self.depth_cam_intr, extr)
 
-    def save_image(self, name):
-        cv2.imwrite('../../image/' + name + '_image.jpg', self.save_color_img)
-        cv2.imwrite('../../image/' + name + '_depth.jpg', self.depth_img)
-        with open('../../image/' + name + '_topic.p', 'wb') as f:
-            pickle.dump([self.color_img_msg,
-                         self.depth_img_msg,
-                         self.color_cam_info_msg,
-                         self.depth_cam_info_msg,
-                         ], f)
+    def vis_pcd(self, extr):
+        """_summary_
+        """
+        pcd = self.pcd(extr)
+        pcd = pcd[np.where(pcd[:,2] < 1.0)[0]]
+        pcd = pcd[np.where(pcd[:,2] > -0.4)[0]]
+        # pcd = pcd[np.where(pcd[:,0] > -0.4)[0]]
+        # pcd = pcd[np.where(pcd[:,0] < 0.4)[0]]
+        # pcd = pcd[np.where(pcd[:,1] > -0.2)[0]]
+        # pcd = pcd[np.where(pcd[:,1] < 0.3)[0]]
         
-    def read_image(self, name):
-        with open('../../image/' + name + '_topic.p', 'rb') as f:
-            topic_list = pickle.load(f)
-            self.color_img_msg = topic_list[0]
-            self.depth_img_msg = topic_list[1]
-            self.color_cam_info_msg = topic_list[2]
-            self.depth_cam_info_msg = topic_list[3]
-
-
+        pcd = pcd[np.arange(1,pcd.shape[0],50)]
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(pcd[:, 0], pcd[:, 1], pcd[:, 2])
+        plt.show()
 
 if __name__ == '__main__':
     rospy.init_node('camera_interface')
     module = CameraInterface()
-    name = "1"
+    name = "3"
     rospy.loginfo('[Crinmi MR] Save/Read Image')
     # rospy.spin()
     # module.save_image(name)
     module.read_image(name)
-    rospy.loginfo('[Crinmi MR] vis Image')
-    module.vis_image()
-    rospy.loginfo('[Crinmi MR] Show Intrinsic Data')
-    module.show_intrinsic()
+    # rospy.loginfo('[Crinmi MR] vis Image')
+    # module.vis_image()
+    rospy.loginfo('[Crinmi MR] vis PCD')
+    module.vis_pcd()
     rospy.loginfo('[Crinmi MR] Node Closed')

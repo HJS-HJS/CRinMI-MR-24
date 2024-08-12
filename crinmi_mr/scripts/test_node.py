@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-import yaml
 import numpy as np
 import rospy
 import rospkg
@@ -14,6 +13,7 @@ from robot_interface.robotSDK_interface import *
 from robot_interface.robotGripper_interface import *
 from camera_interface.camera_interface import CameraInterface
 from tf_interface.tf_interface import TFInterface
+from visualize_interface.visualize_interface import VisualizeInterface
 from utils.utils import *
 
 class Test(object):
@@ -32,8 +32,9 @@ class Test(object):
         
         # ========= tf marker posision test =========
         # temp marker_set for test
-        self.marker_set           = np.load(config_file + "/capture_pose1.npz")
-        marker = np.hstack((self.marker_set["marker_37_trans.npy"], [0, 0, 0]))
+        self.marker_set           = np.load(config_file + "/aruco/capture_pose1.npz")
+        marker = np.hstack((self.marker_set["marker_37_trans.npy"], self.marker_set["marker_37_rot.npy"]))
+        # marker = np.hstack((self.marker_set["marker_37_trans.npy"], [0, 0, 0]))
         # marker = self.pose_config["marker_pose"][0]
 
         # temp robot state for test
@@ -50,9 +51,17 @@ class Test(object):
         self.tf_interface.base2eef(robot_state, mm = True, deg = True)
         self.tf_interface.cam2marker(marker, mm = True, deg = True)
         rospy.sleep(1)
-        marker_pose = self.tf_interface.matrix(target="base_link", source="marker")
-        print("base_link to marker")
-        print(marker_pose)
+        # marker_pose = self.tf_interface.matrix(target="base_link", source="marker")
+        # print("base_link to marker")
+        # print(marker_pose)
+
+        camera = CameraInterface()
+        camera.read_image('1')
+        # camera.vis_pcd(self.tf_interface.matrix(target="base_link", source="camera_link"))
+
+        vis = VisualizeInterface()
+        pcd = camera.pcd(self.tf_interface.matrix(target="base_link", source="camera_link"))
+        vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
 
 
         # # test1 (start from arbitrary pose & come back to home position)

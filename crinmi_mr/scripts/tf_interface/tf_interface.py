@@ -38,6 +38,11 @@ class Crinmi_TransformStamped(TransformStamped):
             rotation = tf.quaternion_from_euler(rotation[0], rotation[1], rotation[2], axes = 'rxyz')
         elif rotation.size == 16:
             rotation = tf.quaternion_from_matrix(rotation)
+        else:
+            print(rotation)
+            _matrix = tf.quaternion_matrix(rotation)
+            rotation = tf.quaternion_from_matrix(_matrix)
+            print(rotation)
         self.transform.rotation.x = rotation[0]
         self.transform.rotation.y = rotation[1]
         self.transform.rotation.z = rotation[2]

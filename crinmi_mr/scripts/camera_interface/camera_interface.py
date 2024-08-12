@@ -66,6 +66,15 @@ class CameraInterface(object):
         return self.cv_bridge.imgmsg_to_cv2(self.color_img_msg, "rgb8")
     
     @property
+    def save_color_img(self) -> np.ndarray:
+        """Converted color image with numpy array from the subscribed color image topic.
+
+        Returns:
+            `numpy.ndarray`: (H, W, C) with `uint8` color image.
+        """
+        return self.cv_bridge.imgmsg_to_cv2(self.color_img_msg, "bgr8")
+
+    @property
     def depth_img(self) -> np.ndarray:
         """Depth image from the subscribed depth image topic.
 
@@ -131,7 +140,7 @@ class CameraInterface(object):
         rospy.loginfo(self.depth_cam_intr)
 
     def save_image(self, name):
-        cv2.imwrite('../../image/' + name + '_image.jpg', self.color_img)
+        cv2.imwrite('../../image/' + name + '_image.jpg', self.save_color_img)
         cv2.imwrite('../../image/' + name + '_depth.jpg', self.depth_img)
         with open('../../image/' + name + '_topic.p', 'wb') as f:
             pickle.dump([self.color_img_msg,
@@ -153,11 +162,11 @@ class CameraInterface(object):
 if __name__ == '__main__':
     rospy.init_node('camera_interface')
     module = CameraInterface()
-    rospy.loginfo('[Crinmi MR] Save/Read Image')
     name = "1"
-    rospy.spin()
-    module.save_image(name)
-    # module.read_image(name)
+    rospy.loginfo('[Crinmi MR] Save/Read Image')
+    # rospy.spin()
+    # module.save_image(name)
+    module.read_image(name)
     rospy.loginfo('[Crinmi MR] vis Image')
     module.vis_image()
     rospy.loginfo('[Crinmi MR] Show Intrinsic Data')

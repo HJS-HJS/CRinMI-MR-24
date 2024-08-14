@@ -36,24 +36,8 @@ class Test(object):
         camera = CameraInterface()
         rospy.loginfo('Camera Interface Ready')
         # ========= tf marker posision test =========
-<<<<<<< HEAD
         self.tf_interface = TFInterface(self.workspace_config)
         rospy.loginfo('TF Interface Ready')
-=======
-        # temp marker_set for test
-        target_id = 37
-        self.marker_set           = np.load(config_file + "/aruco/capture_pose1.npz")
-        marker = self.marker_set["marker_{}_pose".format(target_id)]
-        # temp robot state for test
-        robot_state = np.array([
-            [0.54718528, 0.05478036, 0.8352169, 0.20298141],
-            [0.8358647, 0.01645447, -0.54868885, -0.65046209],
-            [-0.04380043, 0.99836284, -0.03678533, 0.75620735],
-            [0, 0, 0 ,1],
-        ])
-        # robot_state = robot_server.RecvRobotState()
->>>>>>> 3cc1628b2a7f16a7aded7a31c555d8dc622f8c76
-
         # ========= tf marker posision test =========
         marker_dir = "/aruco/capture_pose1.npz"
         aruco_list = ["4", "5", "29", "37", "40"]

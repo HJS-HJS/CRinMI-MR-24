@@ -32,11 +32,9 @@ class Test(object):
         
         # ========= tf marker posision test =========
         # temp marker_set for test
+        target_id = 37
         self.marker_set           = np.load(config_file + "/aruco/capture_pose1.npz")
-        marker = np.hstack((self.marker_set["marker_37_trans.npy"], self.marker_set["marker_37_rot.npy"]))
-        # marker = np.hstack((self.marker_set["marker_37_trans.npy"], [0, 0, 0]))
-        # marker = self.pose_config["marker_pose"][0]
-
+        marker = self.marker_set["marker_{}_pose".format(target_id)]
         # temp robot state for test
         robot_state = np.array([
             [0.54718528, 0.05478036, 0.8352169, 0.20298141],

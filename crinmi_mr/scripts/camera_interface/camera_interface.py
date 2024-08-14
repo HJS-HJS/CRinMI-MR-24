@@ -195,13 +195,6 @@ class CameraInterface(object):
         """_summary_
         """
         pcd = self.pcd(extr)
-        pcd = pcd[np.where(pcd[:,2] < 1.0)[0]]
-        pcd = pcd[np.where(pcd[:,2] > -0.4)[0]]
-        # pcd = pcd[np.where(pcd[:,0] > -0.4)[0]]
-        # pcd = pcd[np.where(pcd[:,0] < 0.4)[0]]
-        # pcd = pcd[np.where(pcd[:,1] > -0.2)[0]]
-        # pcd = pcd[np.where(pcd[:,1] < 0.3)[0]]
-        
         pcd = pcd[np.arange(1,pcd.shape[0],50)]
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -218,6 +211,7 @@ if __name__ == '__main__':
     module.read_image(name)
     # rospy.loginfo('[Crinmi MR] vis Image')
     # module.vis_image()
+    module.show_intrinsic()
     rospy.loginfo('[Crinmi MR] vis PCD')
     module.vis_pcd()
     rospy.loginfo('[Crinmi MR] Node Closed')

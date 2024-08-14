@@ -13,7 +13,6 @@ from robot_interface.robotSDK_interface import *
 from robot_interface.robotGripper_interface import *
 from camera_interface.camera_interface import CameraInterface
 from tf_interface.tf_interface import TFInterface
-from visualize_interface.visualize_interface import VisualizeInterface
 from data_save.data_save import DataSaveInterface
 from utils.utils import *
 
@@ -29,10 +28,10 @@ class Test(object):
         self.pose_config          = rospy.get_param("~robot_pose")
         
         # ========= RB10 interface test =========
-        # robot_server = RobotControlServer(self.ip_config["robot"])
+        robot_server = RobotControlServer(self.ip_config["robot"])
         rospy.loginfo('Robot Control Server Ready')
         # ========= RB10 interface test =========
-        # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
+        gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
         rospy.loginfo('Robot Gripper Server Ready')
         # ========= camera interface test =========
         camera = CameraInterface()
@@ -47,66 +46,19 @@ class Test(object):
 
         # Generate TF msg
         # robot state for test
-        # robot_state = robot_server.RecvRobotState()
-        robot_state = np.array(
-            [
-                [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
-                [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
-                [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
-                [ 0.        ,  0.        ,  0.        ,  1.        ],
-                ]
-            )
+        robot_state = robot_server.RecvRobotState()
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
 
         # temp marker_set for test
-        self.marker_set           = np.load(config_file + "/aruco/capture_pose2.npz")
-        aruco_list = ["4", "5", "29", "37", "40"]
-        for id in aruco_list:
-            self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, np.hstack((self.marker_set["marker_" + id + "_trans.npy"], self.marker_set["marker_" + id + "_rot.npy"])), m = True, deg = False)
-
-        camera = CameraInterface()
         rospy.sleep(0.5)
-
-        vis = VisualizeInterface()
-        pcd = camera.pcd(self.tf_interface.matrix(target="base_link", source="camera_depth_optical_frame"))
-        vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
-        camera.vis_image()
-
-
-        # # test1 (start from arbitrary pose & come back to home position)
-        # rospy.loginfo('Move to Home pose using MoveJ')
-        # robot_server.SetVelocity(20)
-        # robot_server.RobotMoveJ(self.pose_config["home_pose"])
-        # while not robot_server.wait:
-        #     rospy.sleep(1)
-
-        # robot_server.SetVelocity(10)
-
-        # rospy.sleep(1)
-        # # # test2 (start from home pose & Move cartesian motion)
-        # rospy.loginfo('Move to specific pose using MoveL')
-        # for pose in self.pose_config["parts_capture_pose"]:
-        #     H = pose2matrix(pose)
-        #     robot_server.RobotMoveL(H)
-        #     rospy.sleep(1)
-        #     while not robot_server.wait:
-        #         rospy.sleep(1)
-
-        # gripper set ##
-        # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
-        # gripper_server.GripperMoveGrip()
-        # rospy.sleep(5)
-
-        # robot_server.RobotMoveL(m_base2marker)
-        # rospy.sleep(1)
-        # while not robot_server.wait:
-        #     rospy.sleep(1)
 
         while True:
             user_input = input('Press enter to record, q to quit...')
             if user_input == 'q':
                 break
             elif user_input == '':
+                rospy.sleep(1)                
+                robot_state = robot_server.RecvRobotState()
                 print("\trecord: ", 
                     self.data_save.save_data(
                     camera.color_img_msg, 
@@ -116,11 +68,11 @@ class Test(object):
                     robot_state
                     )
                 )
+                self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
             else:
                 pass
 
     def SpinOnce(self):
-        # self.tf_interface.broadcast()
         pass
     
 if __name__ == '__main__':

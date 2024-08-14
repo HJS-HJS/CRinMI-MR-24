@@ -11,7 +11,7 @@ import tf2_ros
 from geometry_msgs.msg import TransformStamped
 
 class Crinmi_TransformStamped(TransformStamped):
-    def __init__(self, parent_id, child_id, transform, rotation, mm = True, deg = True):
+    def __init__(self, parent_id, child_id, transform = [0, 0, 0], rotation = [0, 0, 0], m = True, deg = True):
         super(Crinmi_TransformStamped, self).__init__()
         self.header.frame_id = parent_id
         self.child_frame_id = child_id
@@ -19,11 +19,11 @@ class Crinmi_TransformStamped(TransformStamped):
         self.transform.translation.x = transform[0]
         self.transform.translation.y = transform[1]
         self.transform.translation.z = transform[2]
-        self.t(transform, mm)
+        self.t(transform, m)
         self.r(rotation, deg)
     
-    def t(self, transform, mm = True):
-        if not mm:
+    def t(self, transform, m = True):
+        if not m:
             transform = np.array(transform) / 1000
         if len(transform) != 3:
             transform = np.array(transform)[:3,3]
@@ -39,10 +39,7 @@ class Crinmi_TransformStamped(TransformStamped):
         elif rotation.size == 16:
             rotation = tf.quaternion_from_matrix(rotation)
         else:
-            print(rotation)
-            _matrix = tf.quaternion_matrix(rotation)
-            rotation = tf.quaternion_from_matrix(_matrix)
-            print(rotation)
+            pass
         self.transform.rotation.x = rotation[0]
         self.transform.rotation.y = rotation[1]
         self.transform.rotation.z = rotation[2]
@@ -57,6 +54,7 @@ class TFInterface(object):
         rospy.loginfo("tf interface imported")
         self.broadcaster = tf2_ros.TransformBroadcaster()
         self.static_broadcaster = tf2_ros.StaticTransformBroadcaster()
+        self.stamp_list = []
         
         json_file = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config', 'robot_camera_calibration', 'calibration{}.json'.format(robot_id)))
         # Load configuation file
@@ -69,14 +67,7 @@ class TFInterface(object):
             child_id = "eef", 
             transform = [0, 0, 0], 
             rotation = [0, 0, 0],
-            mm = True, deg = True
-            )
-        self.tf_cam2marker = Crinmi_TransformStamped(
-            parent_id = "camera_link", 
-            child_id = "marker",
-            transform = [0, 0, 0],
-            rotation = [0, 0, 0],
-            mm = True, deg = True
+            m = False, deg = True
             )
         # static tf
         self.tf_eef2gripper = Crinmi_TransformStamped(
@@ -84,44 +75,74 @@ class TFInterface(object):
             child_id = "gripper", 
             transform = [0, 0, 0], 
             rotation = [90, 0, 90-37],
-            mm = True, deg = True
+            m = False, deg = True
             )
         self.tf_gripper2cam = Crinmi_TransformStamped(
             parent_id = "gripper", 
-            child_id = "camera_link", 
-            # transform = np.array(cfg["calibration_data"] ) * -1, 
+            child_id = "camera_calibration", 
             transform = cfg["calibration_data"], 
             rotation = [0, 0, -180], 
-            mm = False, deg = True
+            m = False, deg = True
+            )
+        self.tf_cam2cam_link = Crinmi_TransformStamped(
+            parent_id = "camera_calibration", 
+            child_id = "camera_link",
+            transform = [0, 0, 0], 
+            rotation = np.array([-0.5, 0.49999, -0.5, -0.5000001]),
+            # rotation = [0, 0, 0],
+            m = False, deg = False
             )
         
-        self.static_broadcaster.sendTransform([self.tf_eef2gripper, self.tf_gripper2cam])
+        self.static_broadcaster.sendTransform([self.tf_eef2gripper, self.tf_gripper2cam, self.tf_cam2cam_link])
         duration = rospy.Duration(0.1)
         timer = rospy.Timer(duration, self.broadcast)
 
         self.buffer = tf2_ros.Buffer()
         listener = tf2_ros.TransformListener(self.buffer)
 
-    def base2eef(self, pose, mm = True, deg = True):
-        if len(pose) >= 6:
-            self.tf_base2eef.t(pose[0:3], mm)
-            self.tf_base2eef.r(pose[3:len(pose)], deg)
-        else:
-            self.tf_base2eef.t(pose, mm)
-            self.tf_base2eef.r(pose, False)
-
-    def cam2marker(self, pose, mm = True, deg = True):
-        if len(pose) >= 6:
-            self.tf_cam2marker.t(pose[0:3], mm)
-            self.tf_cam2marker.r(pose[3:len(pose)], deg)
-        else:
-            self.tf_cam2marker.t(pose, mm)
-            self.tf_cam2marker.r(pose, False)
-
     def broadcast(self, event):
         self.tf_base2eef.header.stamp = rospy.Time.now()
-        self.tf_cam2marker.header.stamp = rospy.Time.now()
-        return self.broadcaster.sendTransform([self.tf_base2eef, self.tf_cam2marker])
+        for id in self.stamp_list:
+            id.header.stamp = rospy.Time.now()
+        self.broadcaster.sendTransform([self.tf_base2eef])
+        return self.broadcaster.sendTransform(self.stamp_list)
+
+    def add_stamp(self, parent_id, child_id, pose, m = True, deg = True):
+        is_exist = False
+        for id in self.stamp_list:
+            if id.child_frame_id == child_id:
+                is_exist = True
+                _temp_stamp = id
+                break
+        if is_exist is not True:
+            _temp_stamp = Crinmi_TransformStamped(
+                parent_id = parent_id, 
+                child_id = child_id,
+                m = False, deg = True
+                )
+            self.stamp_list.append(_temp_stamp)
+        self.set_tf_pose(_temp_stamp, pose, m = m, deg = deg)
+        
+    def del_stamp(self, child_id):
+        is_exist = False
+        for id in self.stamp_list:
+            if id.child_frame_id == child_id:
+                is_exist = True
+                self.stamp_list.remove(id)
+                break
+        return is_exist
+
+    def check_stamp(self):
+        list(map(lambda x: print(x[0], x[1].child_frame_id), enumerate(self.stamp_list)))
+    
+    def set_tf_pose(self, stampe, pose, m = True, deg = True):
+        if len(pose) >= 6:
+            stampe.t(pose[0:3], m)
+            stampe.r(pose[3:len(pose)], deg)
+        else:
+            stampe.t(pose, m)
+            stampe.r(pose, False)
+
     
     def matrix(self, target, source):
         _stamp = self.buffer.lookup_transform(target_frame=target, source_frame=source, time=rospy.Time())
@@ -141,4 +162,6 @@ class TFInterface(object):
 if __name__ == '__main__':
     rospy.init_node("tf2_broadcaster")
     module = TFInterface(1)
+    rospy.sleep(2)
+
     

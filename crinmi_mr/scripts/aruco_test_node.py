@@ -74,8 +74,8 @@ class Test(object):
         Return target poses(unit: mm)
         Target poses are aligned with the z-axis to marker pose
 
-        target_pose: offset 5mm in z-axis from marker_pose
-        pre_target_pose: offset gripper length(246mm) in z-axis from target_pose
+        target_pose: offset(260mm) in z-axis from marker_pose to avoid gripper collision
+        pre_target_pose: offset(90mm) in z-axis from target_pose to avoid moving collision
         
         '''
 
@@ -86,10 +86,10 @@ class Test(object):
         # calculate target_pose
         target_pose = base_pose
         target_pose[:3, 3] = marker_pose[: 3]
-        target_pose = target_pose[2, 3] - 350
+        target_pose = target_pose[2, 3] - 260
         
         # calculate pre_target_pose
-        pre_target_pose = target_pose[2, 3] - 260
+        pre_target_pose = target_pose[2, 3] - 350
         
         return pre_target_pose, target_pose
 

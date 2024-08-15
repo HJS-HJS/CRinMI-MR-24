@@ -200,6 +200,28 @@ class CameraInterface(object):
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(pcd[:, 0], pcd[:, 1], pcd[:, 2])
         plt.show()
+        
+    def pixel_to_3d(self, pixel_x, pixel_y):
+        """
+        Transform 2d pixel coordinate points to 3d camera coordinate points
+        """
+        
+        if self.depth_img is None or self.color_cam_intr is None:
+            rospy.logwarn("Depth image or camera matrix not available")
+            return None
+            
+        depth = self.depth_img[pixel_y, pixel_x]
+
+        fx = self.color_cam_intr[0, 0]
+        fy = self.color_cam_intr[1, 1]
+        cx = self.color_cam_intr[0, 2]
+        cy = self.color_cam_intr[1, 2]
+
+        x = (pixel_x - cx) * depth / fx
+        y = (pixel_y - cy) * depth / fy
+        z = depth
+
+        return np.array([x, y, z])
 
 if __name__ == '__main__':
     rospy.init_node('camera_interface')

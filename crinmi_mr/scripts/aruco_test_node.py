@@ -39,30 +39,41 @@ class Test(object):
         self.tf_interface = TFInterface(self.workspace_config)
         rospy.loginfo('TF Interface Ready')
         # ========= tf marker posision test =========
-        marker_dir = "/aruco/capture_pose1.npz"
-        aruco_list = ["4", "5", "29", "37", "40"]
-        target_idx = "37"
+        marker_dir = "/aruco/capture_pose3_keti.npz"
+        aruco_list = ["4", "5", "30", "36"]
+        target_idx = "36"
         self.marker_set           = np.load(config_file + marker_dir)
+        rospy.sleep(1)
         for id in aruco_list:
-            self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, self.marker_set["marker_" + id + "_pose.npy"], m = True, deg = False)
-
+            self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, self.marker_set["marker_" + id + "_pose"], m = True, deg = False)
+        marker_offset = np.array([0, 0])
         
         rospy.sleep(1)
         robot_state = robot_server.RecvRobotState()
+        # robot_state = np.array([
+        #                 [-0.31262184, -0.01071513,  0.94981723,  0.00150843],
+        #                 [ 0.94985115, -0.01099754,  0.31250894, -0.66986597],
+        #                 [ 0.00709708,  0.99988211,  0.01361585,  0.78295249],
+        #                 [ 0.        ,  0.        ,  0.        ,  1.        ],])
+        print(robot_state)
+
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
 
         vis = VisualizeInterface()
-        pcd = camera.pcd(self.tf_interface.matrix(target="base_link", source="camera_depth_optical_frame"))
+        pcd = camera.pcd(np.eye(4))
         vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
 
-        while True:
-            user_input = input('Press enter to start, q to quit...')
-            if user_input == 'q':
-                break
-            elif user_input == '':
-                self.execution(self.tf_interface.matrix(target="base_link", source="marker"+target_idx))
-            else:
-                pass
+        gripper_server.GripperMoveGrip()
+        print(self.tf_interface.matrix(target="base_link", source="marker"+target_idx))
+        # while True:
+        #     user_input = input('Press enter to start, q to quit...')
+        #     if user_input == 'q':
+        #         break
+        #     elif user_input == '':
+        #         gripper_server.GripperMoveGrip()
+        #         self.execution(self.tf_interface.matrix(target="base_link", source="marker"+target_idx))
+        #     else:
+        #         pass
 
 
     def SpinOnce(self):

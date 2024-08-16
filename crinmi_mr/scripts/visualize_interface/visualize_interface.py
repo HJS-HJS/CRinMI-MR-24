@@ -17,7 +17,7 @@ class VisualizeInterface(object):
 
     def pub_pcd(self, pcd):
         _header = Header()
-        _header.frame_id = "base_link"
+        _header.frame_id = "camera_calibration"
         _header.stamp = rospy.Time.now()
         
         fields =[

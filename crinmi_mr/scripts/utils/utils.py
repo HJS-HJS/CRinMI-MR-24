@@ -4,7 +4,7 @@ import tf.transformations as tf
 def pose2matrix(pose, mm=False):
     if len(pose) != 6:
         raise Exception("[pose2matrix] Size of pose array is not 6")
-    if not mm:
+    if mm:
         pose[0:3] = np.array(pose[0:3]) / 1000
     else:
         pose[0:3] = np.array(pose[0:3])

@@ -73,14 +73,16 @@ class TFInterface(object):
         self.tf_eef2gripper = Crinmi_TransformStamped(
             parent_id = "eef", 
             child_id = "gripper", 
-            transform = [0, 0, 0], 
-            rotation = [90, 0, 90-37],
+            transform = [0, -246, 0], 
+            rotation = [90, 0, cfg["home_angle"]],
             m = False, deg = True
             )
+        t_gripper2cam = np.array(cfg["calibration_data"])
+        t_gripper2cam = t_gripper2cam * np.array([1, 1, -1])
         self.tf_gripper2cam = Crinmi_TransformStamped(
             parent_id = "gripper", 
             child_id = "camera_calibration", 
-            transform = cfg["calibration_data"], 
+            transform = t_gripper2cam, 
             rotation = [0, 0, -180], 
             m = False, deg = True
             )

@@ -59,6 +59,7 @@ class Test(object):
             elif user_input == '':
                 rospy.sleep(1)                
                 robot_state = robot_server.RecvRobotState()
+                self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
                 print("\trecord: ", 
                     self.data_save.save_data(
                     camera.color_img_msg, 
@@ -68,7 +69,6 @@ class Test(object):
                     robot_state
                     )
                 )
-                self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
             else:
                 pass
 

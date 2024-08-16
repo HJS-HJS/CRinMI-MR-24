@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+import cv2
+import yaml
 import numpy as np
 import rospy
 import rospkg
@@ -16,6 +18,7 @@ from tf_interface.tf_interface import TFInterface
 from visualize_interface.visualize_interface import VisualizeInterface
 from data_save.data_save import DataSaveInterface
 from utils.utils import *
+from segment_interface.yolo_segment_interface import *
 
 class Test(object):
     
@@ -65,44 +68,14 @@ class Test(object):
         for id in aruco_list:
             self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, np.hstack((self.marker_set["marker_" + id + "_trans.npy"], self.marker_set["marker_" + id + "_rot.npy"])), m = True, deg = False)
 
-        camera = CameraInterface()
         rospy.sleep(0.5)
 
         vis = VisualizeInterface()
         # pcd = camera.pcd(self.tf_interface.matrix(target="base_link", source="camera_calibration"))
         pcd = camera.pcd(np.eye(4))
         vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
-        camera.vis_image()
+        # camera.vis_image()
 
-
-        # # test1 (start from arbitrary pose & come back to home position)
-        # rospy.loginfo('Move to Home pose using MoveJ')
-        # robot_server.SetVelocity(20)
-        # robot_server.RobotMoveJ(self.pose_config["home_pose"])
-        # while not robot_server.wait:
-        #     rospy.sleep(1)
-
-        # robot_server.SetVelocity(10)
-
-        # rospy.sleep(1)
-        # # # test2 (start from home pose & Move cartesian motion)
-        # rospy.loginfo('Move to specific pose using MoveL')
-        # for pose in self.pose_config["parts_capture_pose"]:
-        #     H = pose2matrix(pose)
-        #     robot_server.RobotMoveL(H)
-        #     rospy.sleep(1)
-        #     while not robot_server.wait:
-        #         rospy.sleep(1)
-
-        # gripper set ##
-        # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
-        # gripper_server.GripperMoveGrip()
-        # rospy.sleep(5)
-
-        # robot_server.RobotMoveL(m_base2marker)
-        # rospy.sleep(1)
-        # while not robot_server.wait:
-        #     rospy.sleep(1)
 
         while True:
             user_input = input('Press enter to record, q to quit...')
@@ -110,9 +83,15 @@ class Test(object):
                 break
             elif user_input == '':
                 robot_state = robot_server.RecvRobotState()
+                print(robot_state)
                 self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
                 pcd = camera.pcd(np.eye(4))
                 vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
+                color_img = camera.color_img
+                segment_server = SegmentInterface()
+                segment_server.run(color_img)
+                segment_server.getImg2SegmentMask()
+                rospy.sleep(5)
             else:
                 pass
 

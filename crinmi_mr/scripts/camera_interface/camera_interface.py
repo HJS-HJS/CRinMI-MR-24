@@ -20,8 +20,8 @@ class CameraInterface(object):
         self.cv_bridge = CvBridge()
         rospy.Subscriber('/camera/color/image_raw', Image, self.read_color_cb)
         rospy.Subscriber('/camera/color/camera_info', CameraInfo, self.read_color_cam_info_cb)
-        rospy.Subscriber('/camera/depth/image_rect_raw', Image, self.read_depth_cb)
-        rospy.Subscriber('/camera/depth/camera_info', CameraInfo, self.read_depth_cam_info_cb)
+        rospy.Subscriber('/camera/aligned_depth_to_color/image_raw', Image, self.read_depth_cb)
+        rospy.Subscriber('/camera/aligned_depth_to_color/camera_info', CameraInfo, self.read_depth_cam_info_cb)
         self.color_img_msg = Image()
         self.depth_img_msg = Image()
         self.color_cam_info_msg = CameraInfo()
@@ -66,7 +66,7 @@ class CameraInterface(object):
         Returns:
             `numpy.ndarray`: (H, W, C) with `uint8` color image.
         """
-        return self.cv_bridge.imgmsg_to_cv2(self.color_img_msg, "rgb8")
+        return self.cv_bridge.imgmsg_to_cv2(self.color_img_msg, "bgr8")
     
     @property
     def save_color_img(self) -> np.ndarray:
@@ -79,6 +79,37 @@ class CameraInterface(object):
 
     @property
     def depth_img(self) -> np.ndarray:
+        """Depth image from the subscribed depth image topic.
+
+        Returns:
+            `numpy.ndarray`: (H, W) with `float32` depth image.
+        """
+        if self.depth_img_msg.encoding == '32FC1':
+            img = self.cv_bridge.imgmsg_to_cv2(self.depth_img_msg)
+        elif self.depth_img_msg.encoding == '16UC1':
+            img = self.cv_bridge.imgmsg_to_cv2(self.depth_img_msg)
+            img = (img/1000.).astype(np.float32)
+        else:
+            # img = self.cv_bridge.imgmsg_to_cv2(self.depth_img_msg, desired_encoding="passthrough")
+            img = self.cv_bridge.imgmsg_to_cv2(self.depth_img_msg)
+
+        # none to zero
+        img = np.nan_to_num(img)
+
+        # depth hole filling
+        inpaint_mask = np.zeros(img.shape, dtype='uint8')
+        inpaint_mask[img == 0] = 255
+        restored_depth_image = cv2.inpaint(
+            img,
+            inpaint_mask,
+            inpaintRadius=15,
+            flags=cv2.INPAINT_NS
+            )
+        return restored_depth_image
+    
+
+    @property
+    def keti_depth_img(self) -> np.ndarray:
         """Depth image from the subscribed depth image topic.
 
         Returns:
@@ -104,8 +135,9 @@ class CameraInterface(object):
             inpaintRadius=15,
             flags=cv2.INPAINT_NS
             )
-        return restored_depth_image
-    
+        print(restored_depth_image)
+        return (restored_depth_image*1000).astype(np.int16)
+
     @property
     def color_cam_intr(self) -> np.ndarray:
         """Color camera intrinsic matrix.

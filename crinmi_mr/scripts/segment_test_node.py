@@ -32,10 +32,10 @@ class Test(object):
         self.pose_config          = rospy.get_param("~robot_pose")
         
         # ========= RB10 interface test =========
-        robot_server = RobotControlServer(self.ip_config["robot"])
+        # robot_server = RobotControlServer(self.ip_config["robot"])
         rospy.loginfo('Robot Control Server Ready')
         # ========= RB10 interface test =========
-        gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
+        # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
         rospy.loginfo('Robot Gripper Server Ready')
         # ========= camera interface test =========
         camera = CameraInterface()
@@ -51,61 +51,52 @@ class Test(object):
         # Generate TF msg
         # robot state for test
         rospy.sleep(1)
-        robot_state = robot_server.RecvRobotState()
-        # robot_state = np.array(
-        #     [
-        #         [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
-        #         [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
-        #         [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
-        #         [ 0.        ,  0.        ,  0.        ,  1.        ],
-        #         ]
-        #     )
+        # robot_state = robot_server.RecvRobotState()
+        robot_state = np.array(
+            [
+                [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
+                [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
+                [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
+                [ 0.        ,  0.        ,  0.        ,  1.        ],
+                ]
+            )
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
-
-        # temp marker_set for test
-        self.marker_set           = np.load(config_file + "/aruco/capture_pose2.npz")
-        aruco_list = ["4", "5", "29", "37", "40"]
-        for id in aruco_list:
-            self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, np.hstack((self.marker_set["marker_" + id + "_trans.npy"], self.marker_set["marker_" + id + "_rot.npy"])), m = True, deg = False)
-
         rospy.sleep(0.5)
 
         vis = VisualizeInterface()
-        # pcd = camera.pcd(self.tf_interface.matrix(target="base_link", source="camera_calibration"))
-        pcd = camera.pcd(np.eye(4))
-        vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
+        camera.read_image("0064")
         # camera.vis_image()
-
+        pcd = camera.pcd()
+        vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
 
         while True:
             user_input = input('Press enter to record, q to quit...')
             if user_input == 'q':
                 break
             elif user_input == '':
-                robot_state = robot_server.RecvRobotState()
-                print(robot_state)
-                self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
-                pcd = camera.pcd(np.eye(4))
-                vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
                 color_img = camera.color_img
                 segment_server = SegmentInterface()
                 segment_server.run(color_img)
-                segment_server.getImg2SegmentMask()
+                seg = segment_server.getImg2SegmentMask()
+                camera.vis_segment(seg)
+                obj_seg = seg[1][0]
+                import cv2
+                obj_seg = cv2.resize(obj_seg, (1280, 720))
+                obj_depth = obj_seg * camera.depth_img
+                obj_pcd = camera.depth2pcd(obj_depth)
+                camera.vis_pcd(obj_pcd, reduction_ratio=10) # visualize with matplotlib
                 rospy.sleep(5)
             else:
                 pass
-
-    def SpinOnce(self):
-        # self.tf_interface.broadcast()
-        pass
     
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')
     server = Test()
-    rate = rospy.Rate(10)  # 20hz
-    while not rospy.is_shutdown():
-        server.SpinOnce()
-        rate.sleep()
+    rospy.spin()
+    # rate = rospy.Rate(10)  # 20hz
+    # while not rospy.is_shutdown():
+    #     server.SpinOnce()
+    #     rate.sleep()
 
     try:
         pass

@@ -135,7 +135,6 @@ class CameraInterface(object):
             inpaintRadius=15,
             flags=cv2.INPAINT_NS
             )
-        print(restored_depth_image)
         return (restored_depth_image*1000).astype(np.int16)
 
     @property
@@ -179,8 +178,7 @@ class CameraInterface(object):
             self.depth_cam_info_msg = topic_list[3]
         if vis: self.vis_image()
     
-    @staticmethod
-    def depth2pcd(depth: np.array, intr: np.array, extr: np.array) ->np.array:
+    def depth2pcd(self, depth: np.array, extr: np.array = np.eye(4)) ->np.array:
         """Convert depth image to pointcloud data.
 
         Args:
@@ -198,41 +196,15 @@ class CameraInterface(object):
         pixels = np.c_[pixel_grid[0].flatten(), pixel_grid[1].flatten()].T
         pixels_homog = np.r_[pixels, np.ones([1, pixels.shape[1]])]
         depth_arr = np.tile(depth.flatten(), [3, 1])
-        point_cloud = depth_arr * np.linalg.inv(intr).dot(pixels_homog)
+        point_cloud = depth_arr * np.linalg.inv(self.depth_cam_intr).dot(pixels_homog)
         point_cloud = point_cloud.transpose()
 
         return (np.matmul(extr[:3,:3], point_cloud[:,:3].T) + extr[:3,3].reshape(3,1)).T
 
-    def show_intrinsic(self):
+    def pcd(self, extr: np.array = np.eye(4)):
         """_summary_
         """
-        rospy.loginfo(self.color_cam_intr)
-        rospy.loginfo(self.depth_cam_intr)
-
-    def vis_image(self):
-        """_summary_
-        """
-        fig = plt.figure()
-        image = fig.add_subplot(211)
-        image.imshow(self.color_img)
-        depth = fig.add_subplot(212)
-        depth.imshow(self.depth_img)
-        plt.show()
-
-    def pcd(self, extr):
-        """_summary_
-        """
-        return self.depth2pcd(self.depth_img, self.depth_cam_intr, extr)
-
-    def vis_pcd(self, extr):
-        """_summary_
-        """
-        pcd = self.pcd(extr)
-        pcd = pcd[np.arange(1,pcd.shape[0],50)]
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(pcd[:, 0], pcd[:, 1], pcd[:, 2])
-        plt.show()
+        return self.depth2pcd(self.depth_img, extr)
         
     def pixel_to_3d(self, pixel_x, pixel_y):
         """
@@ -255,6 +227,42 @@ class CameraInterface(object):
         z = depth
 
         return np.array([x, y, z])
+    
+    def show_intrinsic(self):
+        """_summary_
+        """
+        rospy.loginfo(self.color_cam_intr)
+        rospy.loginfo(self.depth_cam_intr)
+
+    def vis_image(self):
+        """_summary_
+        """
+        fig = plt.figure()
+        image = fig.add_subplot(211)
+        image.imshow(self.color_img)
+        depth = fig.add_subplot(212)
+        depth.imshow(self.depth_img)
+        plt.show()
+
+    def vis_pcd(self, pcd:np.array, extr:np.array = np.eye(4), reduction_ratio: int = 50):
+        """_summary_
+        """
+        pcd_s = pcd[np.arange(1,pcd.shape[0], reduction_ratio)]
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(pcd_s[:, 0], pcd_s[:, 1], pcd_s[:, 2])
+        ax.axis("equal")
+        plt.show()
+
+    @staticmethod
+    def vis_segment(segment_list):
+        fig = plt.figure()
+        axis = int(np.ceil(np.sqrt(len(segment_list))))
+        for idx, seg in enumerate(segment_list):
+            image = fig.add_subplot(axis, axis, idx + 1)
+            image.imshow(seg[0])
+            image.set_title(seg[1])
+        plt.show()
 
 if __name__ == '__main__':
     rospy.init_node('camera_interface')
@@ -268,5 +276,5 @@ if __name__ == '__main__':
     # module.vis_image()
     module.show_intrinsic()
     rospy.loginfo('[Crinmi MR] vis PCD')
-    module.vis_pcd()
+    module.vis_pcd(module.depth_img)
     rospy.loginfo('[Crinmi MR] Node Closed')

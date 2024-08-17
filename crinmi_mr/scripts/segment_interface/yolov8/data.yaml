@@ -1,0 +1,9 @@
+path: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8
+train: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8/data/train
+val: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8/data/train/images
+
+nc: 17
+names: ['a_L_shape_angle', 'a_bearing_holder', 'a_cam_zig', a_hex_wrench', 
+        'a_rod_end_bearing', 'a_roller', g_L_shape_angle_x, g_bearing_holder_x',
+        'g_bearing_holder_y', 'g_cam_zig_x', 'g_cam_zig_y', 'g_hex_wrench_x',
+        'g_hex_wrench_y', 'g_rod_end_bearing_x', 'g_rod_end_bearing_y', 'g_roller_x', 'g_roller_y']

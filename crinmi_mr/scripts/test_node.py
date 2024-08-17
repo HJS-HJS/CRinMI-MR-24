@@ -29,10 +29,10 @@ class Test(object):
         self.pose_config          = rospy.get_param("~robot_pose")
         
         # ========= RB10 interface test =========
-        robot_server = RobotControlServer(self.ip_config["robot"])
+        # robot_server = RobotControlServer(self.ip_config["robot"])
         rospy.loginfo('Robot Control Server Ready')
         # ========= RB10 interface test =========
-        gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
+        # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
         rospy.loginfo('Robot Gripper Server Ready')
         # ========= camera interface test =========
         camera = CameraInterface()
@@ -48,15 +48,15 @@ class Test(object):
         # Generate TF msg
         # robot state for test
         rospy.sleep(1)
-        robot_state = robot_server.RecvRobotState()
-        # robot_state = np.array(
-        #     [
-        #         [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
-        #         [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
-        #         [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
-        #         [ 0.        ,  0.        ,  0.        ,  1.        ],
-        #         ]
-        #     )
+        # robot_state = robot_server.RecvRobotState()
+        robot_state = np.array(
+            [
+                [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
+                [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
+                [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
+                [ 0.        ,  0.        ,  0.        ,  1.        ],
+                ]
+            )
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
 
         # temp marker_set for test
@@ -65,7 +65,7 @@ class Test(object):
         for id in aruco_list:
             self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, np.hstack((self.marker_set["marker_" + id + "_trans.npy"], self.marker_set["marker_" + id + "_rot.npy"])), m = True, deg = False)
 
-        camera = CameraInterface()
+        camera.read_image("0061")
         rospy.sleep(0.5)
 
         vis = VisualizeInterface()

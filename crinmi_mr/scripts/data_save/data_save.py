@@ -2,7 +2,7 @@ import os
 import pickle
 
 class DataSaveInterface(object):
-    def __init__(self, dir:str):
+    def __init__(self, dir: str):
         self.save_dir = dir
         self.FILE_ZERO_PADDING_NUM = 4
         self.idx = self.data_num()

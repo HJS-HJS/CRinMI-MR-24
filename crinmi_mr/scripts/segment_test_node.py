@@ -64,7 +64,7 @@ class Test(object):
         rospy.sleep(0.5)
 
         vis = VisualizeInterface()
-        camera.read_image("0064")
+        camera.read_image("0070")
         # camera.vis_image()
         pcd = camera.pcd()
         vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
@@ -77,14 +77,14 @@ class Test(object):
                 color_img = camera.color_img
                 segment_server = SegmentInterface()
                 segment_server.run(color_img)
-                seg = segment_server.getImg2SegmentMask()
+                seg = segment_server.img2SegmentMask()
                 camera.vis_segment(seg)
-                obj_seg = seg[1][0]
-                import cv2
+                
+                obj_seg = seg[2][0]
                 obj_seg = cv2.resize(obj_seg, (1280, 720))
                 obj_depth = obj_seg * camera.depth_img
                 obj_pcd = camera.depth2pcd(obj_depth)
-                camera.vis_pcd(obj_pcd, reduction_ratio=10) # visualize with matplotlib
+                # camera.vis_pcd(obj_pcd, reduction_ratio=1) # visualize with matplotlib
                 rospy.sleep(5)
             else:
                 pass

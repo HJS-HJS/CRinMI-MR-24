@@ -87,12 +87,20 @@ class TFInterface(object):
             m = False, deg = True
             )
         self.tf_cam2cam_link = Crinmi_TransformStamped(
-            parent_id = "camera_calibration", 
+            parent_id = "camera_calibration",
             child_id = "camera_link",
-            transform = [0, 0, 0], 
+            transform = [0, 0, 0],
             rotation = np.array([-0.5, 0.49999, -0.5, -0.5000001]),
             # rotation = [0, 0, 0],
             m = False, deg = False
+            )
+        
+        self.tf_cam2assemble  = Crinmi_TransformStamped(
+            parent_id = "camera_calibration", 
+            child_id = "assemble_part", 
+            transform = [0, 0, 0], 
+            rotation = [0, 0, 0],
+            m = False, deg = True
             )
         
         self.static_broadcaster.sendTransform([self.tf_eef2gripper, self.tf_gripper2cam, self.tf_cam2cam_link])
@@ -104,9 +112,11 @@ class TFInterface(object):
 
     def broadcast(self, event):
         self.tf_base2eef.header.stamp = rospy.Time.now()
+        self.tf_cam2assemble.header.stamp = rospy.Time.now()
         for id in self.stamp_list:
             id.header.stamp = rospy.Time.now()
         self.broadcaster.sendTransform([self.tf_base2eef])
+        self.broadcaster.sendTransform([self.tf_cam2assemble])
         return self.broadcaster.sendTransform(self.stamp_list)
 
     def add_stamp(self, parent_id, child_id, pose, m = True, deg = True):
@@ -155,8 +165,8 @@ class TFInterface(object):
             _stamp.transform.rotation.w,
         ])
         _matrix[:3,3] = np.array([
-            _stamp.transform.translation.x, 
-            _stamp.transform.translation.y, 
+            _stamp.transform.translation.x,
+            _stamp.transform.translation.y,
             _stamp.transform.translation.z
             ])
         return _matrix

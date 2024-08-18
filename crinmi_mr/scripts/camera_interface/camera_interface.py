@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import pickle
+import open3d
 
 import rospy
 import rospkg
@@ -226,7 +227,7 @@ class CameraInterface(object):
         y = (pixel_y - cy) * depth / fy
         z = depth
 
-        return np.array([x, y, z])
+        return x, y, z
     
     def show_intrinsic(self):
         """_summary_
@@ -253,6 +254,11 @@ class CameraInterface(object):
         ax.scatter(pcd_s[:, 0], pcd_s[:, 1], pcd_s[:, 2])
         ax.axis("equal")
         plt.show()
+        # open3d.visualization.draw_geometries([pcd],
+        #                           zoom=0.3412,
+        #                           front=[0.4257, -0.2125, -0.8795],
+        #                           lookat=[2.6172, 2.0475, 1.532],
+        #                           up=[-0.0694, -0.9768, 0.2024])
 
     @staticmethod
     def vis_segment(segment_list):
@@ -261,7 +267,7 @@ class CameraInterface(object):
         for idx, seg in enumerate(segment_list):
             image = fig.add_subplot(axis, axis, idx + 1)
             image.imshow(seg[0])
-            image.set_title(seg[1])
+            image.set_title(seg[2])
         plt.show()
 
 if __name__ == '__main__':

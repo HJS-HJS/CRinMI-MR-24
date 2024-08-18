@@ -23,7 +23,11 @@ class GripperControlServer():
 
     def RecvGripperWidth(self):
         return self.gripper.CurPos()
-    
+
+    def GripperMove(self, width):
+        self.gripper.Move(width)
+        return
+        
     def GripperMoveGrip(self):
         self.gripper.Grip()
         return 

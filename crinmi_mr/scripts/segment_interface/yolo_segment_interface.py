@@ -32,6 +32,8 @@ class SegmentInterface():
             # Convert the mask to a binary mask (if necessary)
                 x1, y1, x2, y2 = workspace
                 binary_mask = (mask > 0.5).cpu().numpy().astype(np.uint8)
+                binary_mask = cv2.resize(binary_mask, (1280, 720))
+                
                 # Append the mask and its corresponding label to the list
                 masks_ws_labels.append((binary_mask, [x1, y1, x2, y2], int(label)))
 

@@ -1,6 +1,7 @@
 path: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8
 train: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8/data/train
-val: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8/data/train/images
+val: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8/data/valid/images
+test: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/segment_interface/yolov8/data/test/images
 
 nc: 17
 names: ['a_L_shape_angle', 'a_bearing_holder', 'a_cam_zig', a_hex_wrench', 

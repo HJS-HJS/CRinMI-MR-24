@@ -5,10 +5,10 @@ from PIL import Image
 from ultralytics import YOLO
 
 start_path = os.getcwd()
-model_path = os.path.join(start_path, "best.pt")
+model_path = os.path.join(start_path, "best_1280.pt")
 model = YOLO(model_path)
 
-source = os.path.join(start_path, "data/train/images/2_image_jpg.rf.38d05318f0a3f6fa9c216a871fd50fe6.jpg")
+source = os.path.join(start_path, "data/test/images/data_0052-p_image_jpg.rf.9b97463173f4f8b4fad245fa9d6bce4b.jpg")
 # source = os.path.join(start_path, "1_image_jpg.rf.34c502ec5092bfe07b368b7e95a00fb2.jpg")
 # source = os.path.join(start_path, "segment_rgb.png")
 print(source)

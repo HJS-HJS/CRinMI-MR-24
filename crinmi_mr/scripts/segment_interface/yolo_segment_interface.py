@@ -12,7 +12,7 @@ sys.path.append(current_dir + '/yolov8')
 class SegmentInterface():
     
     def __init__(self):
-        self.model_path = os.path.join(current_dir, "yolov8/best.pt")
+        self.model_path = os.path.join(current_dir, "yolov8/best_1280.pt")
         self.model = YOLO(self.model_path)
         print("Segmentation model ready..")
 
@@ -26,13 +26,14 @@ class SegmentInterface():
         im = Image.fromarray(self.result.plot()[..., ::-1])
         im.show()
 
-    def getImg2SegmentMask(self):
-        masks_with_labels = []
-        for mask, label in zip(self.result.masks.data, self.result.boxes.cls):
+    def img2SegmentMask(self):
+        masks_ws_labels = []
+        for mask, workspace, label in zip(self.result.masks.data, self.result.boxes.xyxy.tolist(), self.result.boxes.cls):
             # Convert the mask to a binary mask (if necessary)
-                binary_mask = 255 * (mask > 0.5).cpu().numpy().astype(np.uint8)
+                x1, y1, x2, y2 = workspace
+                binary_mask = (mask > 0.5).cpu().numpy().astype(np.uint8)
                 # Append the mask and its corresponding label to the list
-                masks_with_labels.append((binary_mask, int(label)))
+                masks_ws_labels.append((binary_mask, [x1, y1, x2, y2], int(label)))
 
-        return masks_with_labels
+        return masks_ws_labels
         

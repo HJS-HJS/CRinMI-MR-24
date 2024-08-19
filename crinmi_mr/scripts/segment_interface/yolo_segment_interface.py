@@ -35,7 +35,7 @@ class SegmentInterface():
                 binary_mask = cv2.resize(binary_mask, (1280, 720))
                 
                 # Append the mask and its corresponding label to the list
-                masks_ws_labels.append((binary_mask, int(label), [x1, y1, x2, y2]))
+                masks_ws_labels.append((binary_mask, [x1, y1, x2, y2], int(label)))
 
         return masks_ws_labels
         

@@ -54,8 +54,10 @@ class Test(object):
         # Generate TF msg
         # robot state for test
         rospy.sleep(1)
+        read_num = "0062"
+        # read_num = "0064"
         # robot_state = robot_server.RecvRobotState()
-        robot_state = camera.temp_read_state("0061")
+        robot_state = camera.temp_read_state(read_num)
         # robot_state = np.array(
         #     [
         #         [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
@@ -68,37 +70,59 @@ class Test(object):
         rospy.sleep(0.5)
 
         vis = VisualizeInterface()
-        camera.read_image("0061")
+        camera.read_image(read_num)
         pcd = camera.pcd()
         vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
+        vis.pub_mesh()
+        color_img = camera.color_img
+        segment_server = SegmentInterface()
+        segment_server.run(color_img)
+        seg = segment_server.img2SegmentMask()
+        # camera.vis_segment(seg)
+        for idx in seg:
+            obj_seg = idx[0]
+            obj_depth = obj_seg * camera.depth_img
+            obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+            print(np.min(obj_pcd, axis=0))
+            print(np.max(obj_pcd, axis=0))
+            obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.01)]
+            obj_pcd = obj_pcd[np.where(obj_pcd[:,2] < 0.5)]
+            # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.5)]
+            # print(obj_pcd)
+            # obj_pcd = obj_pcd[np.where(pcd[:,2] < 0.03)]
+            vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
 
-        while True:
-            user_input = input('Press enter to record, q to quit...')
-            if user_input == 'q':
-                break
-            elif user_input == '':
-                color_img = camera.color_img
-                segment_server = SegmentInterface()
-                segment_server.run(color_img)
-                seg = segment_server.img2SegmentMask()
-                camera.vis_segment(seg)
-                for idx in seg:
-                    obj_seg = idx[0]
-                    obj_depth = obj_seg * camera.depth_img
-                    obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
-                    # obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("camera_color_frame", "base_link"))
-                    # obj_pcd = camera.depth2pcd(obj_depth)
-                    vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
-                    pose = self.assemble.get_pose(obj_pcd, idx[-1])
-                    # camera.vis_pcd(obj_pcd, reduction_ratio=1) # visualize with matplotlib
-                # idx = 6
-                # obj_seg = seg[idx][0]
-                # obj_depth = obj_seg * camera.depth_img
-                # obj_pcd = camera.depth2pcd(obj_depth)
-                # pose = self.assemble.get_pose(obj_pcd, seg[idx][-1])
-                rospy.sleep(1)
-            else:
-                pass
+            pose, test_pcd = self.assemble.get_pose(obj_pcd, idx[-1])
+            self.tf_interface.add_stamp("base_link", "asset_" + str(idx[-1]), pose, m = True, deg = False)
+            print("asset_" + str(idx[-1]))
+            vis.pub_test_pcd(test_pcd)
+            vis.pub_mesh()
+
+            # camera.vis_pcd(obj_pcd, reduction_ratio=1) # visualize with matplotlib
+        # idx = 9
+        # obj_seg = seg[idx][0]
+        # obj_depth = obj_seg * camera.depth_img
+        # obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+        # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.01)]
+        # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] < 0.5)]
+        # vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
+        # pose, test_pcd = self.assemble.get_pose(obj_pcd, seg[idx][-1])
+        # self.tf_interface.add_stamp("base_link", "asset_" + str(seg[idx][-1]), pose, m = True, deg = False)
+        # vis.pub_test_pcd(test_pcd)
+        # vis.pub_mesh()
+        # self.tf_interface.broadcast_once()
+        # idx = 10
+        # obj_seg = seg[idx][0]
+        # obj_depth = obj_seg * camera.depth_img
+        # obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+        # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.01)]
+        # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] < 0.5)]
+        # vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
+        # pose, test_pcd = self.assemble.get_pose(obj_pcd, seg[idx][-1])
+        # self.tf_interface.add_stamp("base_link", "asset_" + str(seg[idx][-1]), pose, m = True, deg = False)
+        # vis.pub_test_pcd(test_pcd)
+        # vis.pub_mesh()
+        rospy.sleep(1)
     
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')

@@ -55,7 +55,7 @@ class Test(object):
         #                 [ 0.94985115, -0.01099754,  0.31250894, -0.66986597],
         #                 [ 0.00709708,  0.99988211,  0.01361585,  0.78295249],
         #                 [ 0.        ,  0.        ,  0.        ,  1.        ],])
-        print(robot_state)
+        # print(robot_state)
 
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
 

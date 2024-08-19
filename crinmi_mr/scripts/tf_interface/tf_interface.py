@@ -117,6 +117,15 @@ class TFInterface(object):
         self.broadcaster.sendTransform([self.tf_base2eef])
         self.broadcaster.sendTransform([self.tf_cam2assemble])
         return self.broadcaster.sendTransform(self.stamp_list)
+    
+    def broadcast_once(self):
+        self.tf_base2eef.header.stamp = rospy.Time.now()
+        self.tf_cam2assemble.header.stamp = rospy.Time.now()
+        for id in self.stamp_list:
+            id.header.stamp = rospy.Time.now()
+        self.broadcaster.sendTransform([self.tf_base2eef])
+        self.broadcaster.sendTransform([self.tf_cam2assemble])
+        self.broadcaster.sendTransform(self.stamp_list)
 
     def add_stamp(self, parent_id, child_id, pose, m = True, deg = True):
         is_exist = False

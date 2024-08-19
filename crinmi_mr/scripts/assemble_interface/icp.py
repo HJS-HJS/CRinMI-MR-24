@@ -46,9 +46,8 @@ class ICP():
         cost = 1000
         while cost > CLASS[id]["cost"]:
         # while cost > 170:
-            # R = mesh_pcd.get_rotation_matrix_from_xyz(np.random.random(3) * np.pi)
-            # R = mesh_pcd.get_rotation_matrix_from_xyz(np.array([np.pi/2, 0, 0]))
-            # mesh_pcd.rotate(R, center=depth_pcd.get_center())
+            R = mesh_pcd.get_rotation_matrix_from_xyz(np.random.random(3) * np.pi)
+            mesh_pcd.rotate(R, center=depth_pcd.get_center())
             result, cost = ICP.icp(mesh_pcd, depth_pcd, CLASS[id]['stop_idx'], CLASS[id]['stop_threshold'])
 
         return result

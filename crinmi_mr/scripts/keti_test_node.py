@@ -128,10 +128,10 @@ class Test(object):
                     self.tf_interface.set_tf_pose(self.tf_interface.tf_cam2assemble, cam2assemble, m = True, deg = True)
                     rospy.sleep(0.5)
 
-                    fig = plt.figure()
-                    image = fig.add_subplot(1,1,1)
-                    image.imshow(cv2.circle(keti_img, (xc, yc), 10, (0, 255, 255), -1))
-                    plt.show()
+                    # fig = plt.figure()
+                    # image = fig.add_subplot(1,1,1)
+                    # image.imshow(cv2.circle(keti_img, (xc, yc), 10, (0, 255, 255), -1))
+                    # plt.show()
 
                     base2cam = self.tf_interface.matrix("base_link", "camera_calibration")
                     base2assemble = self.tf_interface.matrix("base_link", "assemble_part")

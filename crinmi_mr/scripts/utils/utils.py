@@ -14,6 +14,23 @@ def pose2matrix(pose, mm=False):
     matrix[:3,3] = pose[0:3]
     return matrix
 
+def pose2matrixz(pose, mm=False):
+    if len(pose) != 6:
+        raise Exception("[pose2matrix] Size of pose array is not 6")
+    if mm:
+        pose[0:3] = np.array(pose[0:3]) / 1000
+    else:
+        pose[0:3] = np.array(pose[0:3])
+
+    theta = pose[5]
+    pose[3:6] = np.deg2rad(np.array(pose[3:6]))
+    matrix = np.array([[np.cos(theta), -np.sin(theta), 0, 0],
+                        [np.sin(theta),  np.cos(theta), 0, 0],
+                        [       0,         0, 1, 0],
+                        [       0,         0, 0, 1]])
+    matrix[:3,3] = pose[0:3]
+    return matrix
+
 def rotation(x, y, z, axes = 'sxyz'):
     x = np.deg2rad(x)
     y = np.deg2rad(y)

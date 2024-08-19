@@ -46,7 +46,7 @@ name = "a_cam_zig"
 
 
 
-np_pcd = np.load("/home/rise/catkin_ws/src/crinmi/data/76/" + str(1) + ".npy")
+np_pcd = np.load("/home/rise/catkin_ws/src/crinmi/CRinMi_MR/data/76/" + str(1) + ".npy")
 np_pcd = np_pcd[np.arange(1,np_pcd.shape[0],2)]
 pcd = o3d.geometry.PointCloud()
 pcd.points = o3d.utility.Vector3dVector(np_pcd)
@@ -57,7 +57,7 @@ pcd1.paint_uniform_color([1, 0, 0])
 
 
 
-mesh2 = o3d.io.read_triangle_mesh("/home/rise/catkin_ws/src/crinmi/data/mesh_file/" + name + ".obj")
+mesh2 = o3d.io.read_triangle_mesh("/home/rise/catkin_ws/src/crinmi/CRinMi_MR/data/mesh_file/" + name + ".obj")
 mesh2.scale(0.254, center=pcd1.get_center())
 
 R = mesh2.get_rotation_matrix_from_xyz((0, 0, np.pi/2))
@@ -164,7 +164,7 @@ vis.run()
 
 # for i in range(obj_list):
 #     print(matchting_list[str(i)])
-#     np_pcd = np.load("/home/rise/catkin_ws/src/crinmi/data/64/" + str(i) + ".npy")
+#     np_pcd = np.load("/home/rise/catkin_ws/src/crinmi/CRinMi_MR/data/64/" + str(i) + ".npy")
 #     pcd = o3d.geometry.PointCloud()
 #     pcd.points = o3d.utility.Vector3dVector(np_pcd)
 #     voxel_down_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)

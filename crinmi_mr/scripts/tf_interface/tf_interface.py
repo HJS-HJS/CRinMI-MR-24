@@ -91,7 +91,6 @@ class TFInterface(object):
             child_id = "camera_link",
             transform = [0, 0, 0],
             rotation = np.array([-0.5, 0.49999, -0.5, -0.5000001]),
-            # rotation = [0, 0, 0],
             m = False, deg = False
             )
         

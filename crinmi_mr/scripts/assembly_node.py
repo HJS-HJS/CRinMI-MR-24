@@ -5,6 +5,7 @@ import os
 import cv2
 import yaml
 import numpy as np
+import matplotlib as plt
 import rospy
 import rospkg
 
@@ -61,7 +62,7 @@ class Test(object):
         # robot state for test
         rospy.sleep(1)
         # robot_state = robot_server.RecvRobotState()
-        robot_state = camera.temp_read_state("0061")
+        robot_state = self.camera.temp_read_state("0061")
         # robot_state = np.array(
         #     [
         #         [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
@@ -77,30 +78,34 @@ class Test(object):
         pcd = self.camera.pcd()
         self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
 
-        self.assembly_pose = np.array(
-            [[ 1., 0. , 0. , 6.13629426],
-            [ 0., 1., 0., -7.38735657],
-            [ 0.,  0. ,  1., -1.23485192],
-            [ 0.,          0. ,         0.        ,  1.        ]]
-        )
+        self.guide_top_view = None
+        self.assembly_top_view = None
 
         self.guide = {}
-        theta = np.pi / 4
-        self.target_pose =  np.array(
-            [[ np.cos(theta), -np.sin(theta) , 0. ,6.13629426],
-              [ np.sin(theta),  np.cos(theta) ,0. , -3.],
-            [ 0.,  0. ,1. ,  3.059168  ],
-            [ 0.       ,   0.       ,   0.       ,   1.        ]]
-        )
+        self.assembly_pose = None
+        self.pre_grasp_pose = None
+        self.grasp_pose = None
+        self.guide_pose = None
+        self.pre_placing_pose = None
 
-        ### 나중에 삭제 ###
-        self.grasp_pose = np.array(
-            [[ 1., 0. ,0. ,6.13629426],
-            [0.,  -1. , 0.,  -7.38735657],
-            [0.,0., -1.,  1.],
-            [ 0.       ,   0.   ,       0.       ,   1.        ]]
-        )
+    def show_status(self):
+        """
+        PRINT ALL POSES
+        """
+        print(self.guide)
+        print(self.assembly_pose)
+        print(self.pre_grasp_pose)
+        print(self.grasp_pose)
+        print(self.guide_pose)
+        print(self.pre_placing_pose)
     
+    def set_tf(self):
+        # robot state for test
+        rospy.sleep(1)
+        robot_state = self.robot_server.RecvRobotState()
+        self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
+        rospy.sleep(0.5)
+
     def get_segment(self):
         """
         RUN Segment with YOLOv8
@@ -112,12 +117,21 @@ class Test(object):
         # server.camera.vis_segment(seg)
         return seg
     
-    def get_guide_poses(self, seg):
+    def get_guide_poses(self):
         """
         RUN ICP for all guide objects
         """
+
         # initiate assembly pose
         self.guide = {}
+
+        # Move to guide top view and set tf
+        self.robot_server.RobotMoveL(self.guide_top_view)
+        self.set_tf()
+
+        # Get poses of guide objects
+        print("Get poses of guide objects")
+        seg = self.get_segment()
 
         for obj in seg:
             obj_idx = obj[1]
@@ -133,17 +147,28 @@ class Test(object):
                 self.guide[obj_idx] = pose
         
         if len(self.guide) > 0:
+            print("GUIDE POSE ESTIMATED")
             return True
         else:
+            print("GUIDE POSE NOT FOUND")
             return False
-
-    def get_assembly_pose(self, seg, idx):
+    
+    def get_assembly_pose(self, idx, grasp=True):
         """
-        RUN ICP for target object
+        RUN ICP for target object and generate grasp pose
         """
 
         # initiate assembly pose
         self.assembly_pose = None
+
+        # Move to guide top view and set tf
+        self.robot_server.RobotMoveL(self.assembly_top_view)
+        self.set_tf()
+
+        print("Get poses of guide objects")
+
+        # SEGMENT
+        seg = self.get_segment()
 
         for obj in seg:
             obj_idx = obj[1]
@@ -156,20 +181,37 @@ class Test(object):
                 self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
                 self.assembly_pose = self.assemble.get_pose(obj_pcd, obj_idx)
         
-        # 실패할 경우
-        if self.assembly_pose is not None:
-            return True
-        else:
-            return False
-
-    def get_grasp(self):
+        # GET GRASP POSE
+        if grasp:
+            self.get_grasp_pose(seg, idx)
+        
+    def get_grasp_pose(self, seg, idx):
         """
         RUN KETINET
         """
-        if ketinet:
-            self.grasp_pose = None # ketinet
-        else:
-            self.grasp_pose = None # 6d pose
+
+    def grasp(self):
+        """
+        GRASP
+        """
+        if self.grasp_pose is None:
+            print("GRASP POSE NOT FOUND")
+            return
+        
+        # initiate
+        self.pre_grasp_pose = None
+        self.set_tf()
+
+        # Calculate pre-grasp pose
+        self.pre_grasp_pose = self.grasp_pose.copy()
+        self.pre_grasp_pose[2,3] += 0.5
+        
+        # EXECUTE
+        self.move_to_pose(self.pre_grasp_pose)
+        self.move_to_pose(self.grasp_pose)
+        #### Gripper close ####
+        self.move_to_pose(self.pre_grasp_pose)
+        self.set_tf()
 
     def matching_guide(self, idx):
         """
@@ -188,36 +230,28 @@ class Test(object):
         else:
             return None
     
-    def calculate_trajectory(self):
-        """
-        Calculate trajectory. All poses are defined in base coordinate
-        """
-
-        trajectory = []
-
-        "Home Pose"
-        trajectory.append(self.assembly_pose)
+    def place(self, idx):
+        if self.guide[idx] is None:
+            print("GUIDE POSE NOT FOUND")
+            return
         
-        "Pre-Grasp pose"
-        pre_grasp_pose = self.grasp_pose.copy()
-        pre_grasp_pose[2,3] += 0.5
-        trajectory.append(pre_grasp_pose)
+        if self.pre_grasp_pose is None:
+            print("PRE-GRASP POSE NOT FOUND")
+            return
         
-        "Grasp pose"
-        trajectory.append(self.grasp_pose)
+        # initiate
+        self.pre_placing_pose = None
+        self.set_tf()
 
-        "Pre-Grasp pose"
-        trajectory.append(pre_grasp_pose)
-
-        "Pre-Placing pose"
+        # calculate pre-placing pose
         a_t_g = self.target_pose @ np.linalg.inv(self.assembly_pose)
-        pre_placing_pose = a_t_g @ pre_grasp_pose
-        trajectory.append(pre_placing_pose)
+        self.pre_placing_pose = a_t_g @ self.pre_grasp_pose
 
-        "Placing pose"
-        trajectory.append(self.target_pose)
-
-        return trajectory
+        # EXECUTE
+        self.move_to_pose(self.pre_placing_pose)
+        self.move_to_pose(self.guide_pose)
+        #### Gripper open ####
+        self.set_tf()
 
     def plot_pose(self, ax, pose):
         """
@@ -241,7 +275,7 @@ class Test(object):
         ax.quiver(*origin, *y_axis, color='g', length=1.0)
         ax.quiver(*origin, *z_axis, color='b', length=1.0)
     
-    def plot_poses(self, trajectory):
+    def plot_poses(self, poses):
         """
         3개의 포즈를 3D 공간에서 시각화합니다.
         
@@ -253,14 +287,13 @@ class Test(object):
         ax = fig.add_subplot(111, projection='3d')
         
         # 각 포즈를 그리기
-        for traj in trajectory:
-            print(traj)    
-            self.plot_pose(ax, traj)
+        for pose in poses:    
+            self.plot_pose(ax, pose)
 
         # 축 범위 설정
-        ax.set_xlim([-15, 0])
-        ax.set_ylim([-15, 0])
-        ax.set_zlim([-15, 5])
+        ax.set_xlim([-15, 15])
+        ax.set_ylim([-15, 15])
+        ax.set_zlim([-15, 15])
         
         # 축 라벨
         ax.set_xlabel('X')
@@ -275,72 +308,46 @@ class Test(object):
         self.robot_server.RobotMoveJ(self.pose_config["home_pose"])
         while not self.robot_server.wait:
             rospy.sleep(1)
+        self.set_tf()
+
+    def move_to_pose(self, pose):
+        rospy.sleep(5)
+        rospy.loginfo('Move to target_pose pose using MoveL')
+        self.robot_server.RobotMoveL(pose)
+        rospy.sleep(1)
+        while not self.robot_server.wait:
+            rospy.sleep(1)
 
     def main(self):
         
         # Move to home pose
         self.move_to_home()
 
-        # Move to guide top view
+        # Get guide poses
+        self.get_guide_poses()
 
-        # Get poses of guide objects
-        print("Get poses of guide objects")
-        guide_seg = self.get_segment()
-        if self.get_guide_poses(guide_seg):
-            print("DONE")
-        else:
-            print("0 GUIDE FOUND")
-            return
-
-        # Move to assembly top view
-
-        # # Input target assembly idx and guide idx(TEMP ver)
-        # user_input = input('Press target idx, q to quit...')
-        # while True:
-        #     user_input = input('Press target idx, q to quit...')
-        #     if user_input.lower() == 'q':
-        #         print("Exiting...")
-        #         return
-        #     else:
-        #         target_idx = int(user_input)
-        #         break
-
-        # # Matching target assembly with guide
-        # guide_idx = self.matching_guide(target_idx)
-        # if guide_idx is None:
-        #     print("MATCHING FAILED")
-        #     return
+        # TARGET IDX(TEMP)
         target_idx = None
+        
+        # Get target pose and grasp pose
+        self.get_assembly_pose(target_idx)
+        
+        # Grasp
+        self.grasp()
+        
+        # Get pose of target matched guide
         guide_idx = None
-
-        # Get pose of target assembly
-        print("Get pose of target assembly")
-        guide_seg = self.get_segment()
-        if self.get_assembly_pose(guide_seg, target_idx):
-            print("DONE")
-        else:
-            print("POSE NOT FOUND")
-            return
+        self.guide_pose = self.guide[guide_idx]
         
-        # Get grasp point of target assembly
-        self.grasp_pose =  self.get_grasp()
-        if self.grasp_pose is None:
-            print("GRASP POSE NOT FOUND")
-            return
-        
-        # Create trajectory to grasping and placing
-        trajectory = self.calculate_trajectory()
-        if len(trajectory) == 6:
-            return trajectory
-        else:
-            print("Trajectory generation failed")
-            return
+        # Place
+        self.place(guide_idx)
         
 
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')
     server = Test()
     rospy.spin()
+
     # rate = rospy.Rate(10)  # 20hz
     # while not rospy.is_shutdown():
     #     server.SpinOnce()
@@ -354,10 +361,21 @@ if __name__ == '__main__':
     #     rospy.loginfo("Disconnect robot & gripper server")
 
     while True:
-        user_input = input('q: quit / h: move to home pose / e: execute main loop')
+        print()
+        user_input = input('q: quit / h: move to home pose / a: getting target assembly pose and grasping pose / g: getting guide poses / m: grasp /p: place')
         if user_input == 'q':
             break
         elif user_input == 'e':
-            server.main()
+            server.execute()
         elif user_input == 'h':
             server.move_to_home()
+        elif user_input == 'a':
+            idx_input = input('TYPE TARGET ASSEMBLY INDEX')
+            server.get_assembly_pose(idx_input)
+        elif user_input == 'g':
+            server.get_guide_poses()
+        elif user_input == 'm':
+            server.grasp()
+        elif user_input =='p':
+            idx_input = input('TYPE TARGET GUIDE INDEX')
+            server.place()

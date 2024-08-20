@@ -11,13 +11,14 @@ class AssembleInterface():
 
         print("target:\t", ICP.get_class_name(id))
         if id <= 5:
-            icp = ICP(0.001, 0.000005)
+            icp = ICP(0.001, 0.002)
             is_guide = False
         else:
-            icp = ICP(0.001, 0.001)
+            # icp = ICP(0.001, 0.001)
+            icp = ICP(0.001, 0.005)
             is_guide = True
 
-        depth_pcd = icp.get_depth_pcd(pcd, is_guide)
+        depth_pcd = icp.get_depth_pcd(pcd, id, is_guide)
         mesh_pcd, translate= icp.get_mesh_pcd(id, depth_pcd)
         mesh_pcd = mesh_pcd.translate([0, 0, -0.02])
         translate[0:3,3] += [0, 0, -0.02]

@@ -54,7 +54,7 @@ class Test(object):
         # Generate TF msg
         # robot state for test
         rospy.sleep(1)
-        read_num = "0062"
+        read_num = "0063"
         # read_num = "0064"
         robot_state = camera.temp_read_state(read_num)
         # robot_state = np.array(
@@ -83,10 +83,8 @@ class Test(object):
             obj_seg = idx[0]
             obj_depth = obj_seg * camera.depth_img
             obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
-            print(np.min(obj_pcd, axis=0))
-            print(np.max(obj_pcd, axis=0))
-            obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.01)]
-            obj_pcd = obj_pcd[np.where(obj_pcd[:,2] < 0.5)]
+            # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.01)]
+            # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] < 0.5)]
             # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.5)]
             # print(obj_pcd)
             # obj_pcd = obj_pcd[np.where(pcd[:,2] < 0.03)]

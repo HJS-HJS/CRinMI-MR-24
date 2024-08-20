@@ -39,13 +39,13 @@ def rotation(x, y, z, axes = 'sxyz'):
     return tf.euler_matrix(x, y, z, axes=axes)[:3,:3]
 
 def marker_angle(marker_list):
-    marker36 = np.array([0.01044702,  0.09468093])
-    marker30 = np.array([0.11187456, -0.10777453])
-    marker4  = np.array([1.06086447e-02, -1.11210563e-01])
-    marker5  = np.array([0.11249995,  0.0950142 ])
+    marker36 = np.array([])
+    marker30 = np.array([])
+    marker4  = np.array([])
+    marker5  = np.array([])
 
-    marker_set1 = np.array(marker4-marker36)
-    marker_set2 = np.array(marker30-marker5)
+    marker_set1 = np.array(marker36-marker30)
+    marker_set2 = np.array(marker4-marker5)
 
     angle1 = np.rad2deg(np.arctan2(marker_set1[1], marker_set1[0]))
     angle2 = np.rad2deg(np.arctan2(marker_set2[1], marker_set2[0]))

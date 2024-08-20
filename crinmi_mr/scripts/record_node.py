@@ -57,7 +57,7 @@ class Test(object):
             if user_input == 'q':
                 break
             elif user_input == '':
-                rospy.sleep(1)                
+                rospy.sleep(2)                
                 robot_state = robot_server.RecvRobotState()
                 self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
                 print("\trecord: ", 

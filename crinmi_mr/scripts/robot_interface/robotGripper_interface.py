@@ -25,6 +25,7 @@ class GripperControlServer():
         return self.gripper.CurPos()
 
     def GripperMove(self, width):
+        # print("width val", width)
         self.gripper.Move(width)
         return
         
@@ -45,3 +46,17 @@ class GripperControlServer():
         self.gripper.Disconnect()
         time.sleep(1.0)
         return
+
+if __name__ == '__main__':
+    controller = GripperControlServer('192.168.3.113')
+    # time.sleep(1.0)
+    # controller.GripperMove(500)
+    # time.sleep(1.0)
+    # controller.GripperMoveGrip()
+    # controller.GripperMove(1100)
+    # time.sleep(1.0)
+    # controller.GripperMove(2000)
+    # time.sleep(1.0)
+    # controller.GripperMove(3000)
+    # time.sleep(1.0)
+    # controller.GripperMove(4000)

@@ -56,7 +56,6 @@ class Test(object):
         rospy.sleep(1)
         read_num = "0062"
         # read_num = "0064"
-        # robot_state = robot_server.RecvRobotState()
         robot_state = camera.temp_read_state(read_num)
         # robot_state = np.array(
         #     [
@@ -66,19 +65,20 @@ class Test(object):
         #         [ 0.        ,  0.        ,  0.        ,  1.        ],
         #         ]
         #     )
+        # robot_state = robot_server.RecvRobotState()
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
         rospy.sleep(0.5)
 
         vis = VisualizeInterface()
         camera.read_image(read_num)
         pcd = camera.pcd()
-        vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
+        vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],3)])
         vis.pub_mesh()
         color_img = camera.color_img
         segment_server = SegmentInterface()
         segment_server.run(color_img)
         seg = segment_server.img2SegmentMask()
-        # camera.vis_segment(seg)
+        camera.vis_segment(seg)
         for idx in seg:
             obj_seg = idx[0]
             obj_depth = obj_seg * camera.depth_img

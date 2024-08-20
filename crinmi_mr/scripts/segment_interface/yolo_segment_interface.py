@@ -23,8 +23,8 @@ class SegmentInterface():
         self.seg_classes = list(self.result.names.values())
         print("\n", "Available class List", "\n", self.seg_classes)
 
-        # im = Image.fromarray(self.result.plot()[..., ::-1])
-        # im.show()
+        im = Image.fromarray(self.result.plot()[..., ::-1])
+        im.show()
 
     def img2SegmentMask(self):
         masks_ws_labels = []

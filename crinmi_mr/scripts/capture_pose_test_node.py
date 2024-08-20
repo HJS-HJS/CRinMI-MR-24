@@ -81,17 +81,17 @@ class Test(object):
             self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
             pcd = camera.pcd(np.eye(4))
             vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
-            rospy.sleep(1)                
-            robot_state = robot_server.RecvRobotState()
-            print("\trecord: ", 
-                self.data_save.save_data(
-                camera.color_img_msg, 
-                camera.depth_img_msg,
-                camera.color_cam_info_msg,
-                camera.depth_cam_info_msg,
-                robot_state
-                )
-            )
+            # rospy.sleep(1)                
+            # robot_state = robot_server.RecvRobotState()
+            # print("\trecord: ", 
+            #     self.data_save.save_data(
+            #     camera.color_img_msg, 
+            #     camera.depth_img_msg,
+            #     camera.color_cam_info_msg,
+            #     camera.depth_cam_info_msg,
+            #     robot_state
+            #     )
+            # )
             rospy.sleep(3)
 
         # capture assemble parts
@@ -108,16 +108,16 @@ class Test(object):
             pcd = camera.pcd(np.eye(4))
             vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
             rospy.sleep(1)                
-            robot_state = robot_server.RecvRobotState()
-            print("\trecord: ", 
-                self.data_save.save_data(
-                camera.color_img_msg, 
-                camera.depth_img_msg,
-                camera.color_cam_info_msg,
-                camera.depth_cam_info_msg,
-                robot_state
-                )
-            )
+            # robot_state = robot_server.RecvRobotState()
+            # print("\trecord: ", 
+            #     self.data_save.save_data(
+            #     camera.color_img_msg, 
+            #     camera.depth_img_msg,
+            #     camera.color_cam_info_msg,
+            #     camera.depth_cam_info_msg,
+            #     robot_state
+            #     )
+            # )
             rospy.sleep(3)
 
 

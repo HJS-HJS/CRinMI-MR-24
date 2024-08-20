@@ -1,11 +1,20 @@
 CLASS = {
     
-    0:  {'name': 'a_L_shape_angle'      , 'type': '.obj', 'cost': 0.210, 'stop_idx': 13, "stop_threshold": 0.250},
-    1:  {'name': 'a_bearing_holder'     , 'type': '.obj', 'cost': 0.135, 'stop_idx': 20, "stop_threshold": 0.150},
-    2:  {'name': 'a_cam_zig'            , 'type': '.obj', 'cost': 0.137, 'stop_idx': 10, "stop_threshold": 0.220},
-    3:  {'name': 'a_hex_wrench'         , 'type': '.obj', 'cost': 0.120, 'stop_idx': 20, "stop_threshold": 0.100},
-    4:  {'name': 'a_rod_end_bearing'    , 'type': '.stl', 'cost': 0.149, 'stop_idx': 20, "stop_threshold": 0.180},
-    5:  {'name': 'a_roller'             , 'type': '.stl', 'cost': 0.080, 'stop_idx': 15, "stop_threshold": 0.135},
+    # 0:  {'name': 'a_L_shape_angle'      , 'type': '.obj', 'cost': 0.210, 'stop_idx': 13, "stop_threshold": 0.250},
+    # 1:  {'name': 'a_bearing_holder'     , 'type': '.obj', 'cost': 0.135, 'stop_idx': 20, "stop_threshold": 0.150},
+    # 2:  {'name': 'a_cam_zig'            , 'type': '.obj', 'cost': 0.137, 'stop_idx': 10, "stop_threshold": 0.220},
+    # 3:  {'name': 'a_hex_wrench'         , 'type': '.obj', 'cost': 0.120, 'stop_idx': 20, "stop_threshold": 0.100},
+    # 4:  {'name': 'a_rod_end_bearing'    , 'type': '.stl', 'cost': 0.149, 'stop_idx': 20, "stop_threshold": 0.180},
+    # 5:  {'name': 'a_roller'             , 'type': '.stl', 'cost': 0.080, 'stop_idx': 15, "stop_threshold": 0.135},
+    
+    0:  {'name': 'a_L_shape_angle'      , 'type': '.obj', 'cost': 0.10, 'stop_idx': 20, "stop_threshold": 0.18},
+    1:  {'name': 'a_bearing_holder'     , 'type': '.obj', 'cost': 0.10, 'stop_idx': 1, "stop_threshold": 5.55},
+    2:  {'name': 'a_cam_zig'            , 'type': '.obj', 'cost': 0.10, 'stop_idx': 1, "stop_threshold": 5.55},
+    3:  {'name': 'a_hex_wrench'         , 'type': '.obj', 'cost': 0.10, 'stop_idx': 1, "stop_threshold": 5.55},
+    4:  {'name': 'a_rod_end_bearing'    , 'type': '.stl', 'cost': 0.10, 'stop_idx': 1, "stop_threshold": 5.55},
+    5:  {'name': 'a_roller'             , 'type': '.stl', 'cost': 0.10, 'stop_idx': 1, "stop_threshold": 5.55},
+
+
 
     6:  {'name': 'g_L_shape_angle'      , 'type': '.obj', 'rotate': False},
     7:  {'name': 'g_bearing_holder_x'   , 'type': '.obj', 'rotate': False},

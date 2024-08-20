@@ -23,8 +23,8 @@ class AssembleInterface():
         translate[0:3,3] += [0, 0, -0.02]
 
         pose, mesh_pcd, matrix = icp.run_icp(depth_pcd, id, is_guide)
-        # icp.vis_pcd(depth_pcd, mesh_pcd)
-        # icp.vis_pcd(depth_pcd, mesh_pcd, pose)
+        icp.vis_pcd(depth_pcd, mesh_pcd)
+        icp.vis_pcd(depth_pcd, mesh_pcd, pose)
 
         mesh_pcd.transform(pose)
 

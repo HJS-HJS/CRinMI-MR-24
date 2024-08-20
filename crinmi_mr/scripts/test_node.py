@@ -29,10 +29,10 @@ class Test(object):
         self.pose_config          = rospy.get_param("~robot_pose")
         
         # ========= RB10 interface test =========
-        # robot_server = RobotControlServer(self.ip_config["robot"])
+        robot_server = RobotControlServer(self.ip_config["robot"])
         rospy.loginfo('Robot Control Server Ready')
         # ========= RB10 interface test =========
-        # gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
+        gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
         rospy.loginfo('Robot Gripper Server Ready')
         # ========= camera interface test =========
         camera = CameraInterface()
@@ -48,31 +48,42 @@ class Test(object):
         # Generate TF msg
         # robot state for test
         rospy.sleep(1)
-        # robot_state = robot_server.RecvRobotState()
-        robot_state = np.array(
-            [
-                [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
-                [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
-                [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
-                [ 0.        ,  0.        ,  0.        ,  1.        ],
-                ]
-            )
+        robot_state = robot_server.RecvRobotState()
+        robot_state =np.array([[-6.69130606e-01, -3.12223171e-15,  7.43144825e-01, -4.64933217e-01],
+                                [ 7.43144825e-01,  3.37607931e-15,  6.69130606e-01, -7.68679976e-01],
+                                [-4.59809667e-15,  1.00000000e+00,  6.12323400e-17,  6.60972357e-01],
+                                [ 0.00000000e+00, 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+
+        # robot_state = np.array(
+        #     [
+        #         [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
+        #         [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
+        #         [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
+        #         [ 0.        ,  0.        ,  0.        ,  1.        ],
+        #         ]
+        #     )
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
 
-        # temp marker_set for test
-        self.marker_set           = np.load(config_file + "/aruco/capture_pose2.npz")
-        aruco_list = ["4", "5", "29", "37", "40"]
-        for id in aruco_list:
-            self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, np.hstack((self.marker_set["marker_" + id + "_trans.npy"], self.marker_set["marker_" + id + "_rot.npy"])), m = True, deg = False)
+        marker_5_pose = np.array([  0.11435308,  0.08167744,  0.46246641, 0, 0, 0])
+        marker_30_pose = np.array([ -0.17843222,  0.08005709,  0.48505111, 0, 0, 0])
+        marker_21_pose = np.array([-0.0316321,  -0.03495728,  0.48229999, 0, 0, 0])
+        marker_37_pose = np.array([ 0.11205553, -0.15022158,  0.46633627, 0, 0, 0])
+        marker_4_pose = np.array([-0.17848817, -0.15740559,  0.50243064, 0, 0, 0])
 
-        camera.read_image("0061")
-        rospy.sleep(0.5)
 
-        vis = VisualizeInterface()
-        # pcd = camera.pcd(self.tf_interface.matrix(target="base_link", source="camera_calibration"))
-        pcd = camera.pcd(np.eye(4))
-        vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
-        camera.vis_image()
+        self.tf_interface.add_stamp("camera_color_optical_frame", "marker_37", marker_37_pose, m = True, deg = False)
+        # target_marker = base2cam @ cam2target
+
+        rospy.sleep(2)
+        target_marker =  self.tf_interface.matrix(target="base_link", source="marker_37")
+        print(target_marker)
+        gripper_server.GripperMoveGrip()
+        robot_server.SetVelocity(10)
+        # robot_server.RobotMoveL(H)
+        # vis = VisualizeInterface()
+        # pcd = camera.pcd(np.eye(4))
+        # vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
+        # camera.vis_image()
 
 
         # # test1 (start from arbitrary pose & come back to home position)

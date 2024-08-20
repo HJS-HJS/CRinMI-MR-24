@@ -25,8 +25,8 @@ class ICP():
             print("down sample")
             depth_pcd = depth_pcd.voxel_down_sample(voxel_size=self.voxel_size*1.5)
         # if not is_guide:
-        #     cl, ind = depth_pcd.remove_statistical_outlier(nb_neighbors=800, std_ratio=1.0)
-        #     depth_pcd = depth_pcd.select_by_index(ind)
+            # cl, ind = depth_pcd.remove_statistical_outlier(nb_neighbors=800, std_ratio=1.0)
+            # depth_pcd = depth_pcd.select_by_index(ind)
         depth_pcd.paint_uniform_color([1, 0, 0])
         return depth_pcd
 
@@ -41,7 +41,7 @@ class ICP():
         mesh_pcd.transform(matrix)
         return mesh_pcd, matrix
     
-    def get_mesh_angle_pcd(self, id, depth_pcd, angle_list:np.array=np.array([0, 0, 0])):
+    def get_mesh_angle_pcd(self, id, depth_pcd, angle_list:np.array=np.array([0, 0, 0]), is_guide:bool = False):
         mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
         mesh.scale(0.001, center=([0, 0, 0]))
         mesh_pcd = mesh.sample_points_uniformly(number_of_points = 4000)
@@ -53,22 +53,41 @@ class ICP():
         mesh_pcd.transform(matrix)
         mesh_pcd.translate([0, 0, -0.02])
         matrix[0:3,3] += [0, 0, -0.02]
+        if is_guide:
+            print('mesh_pcd.get_center()', mesh_pcd.get_center())
+            print(len(mesh_pcd.points))
+            min_val = np.min(mesh_pcd.points,axis=0)
+            min_list = np.where(np.array(mesh_pcd.points)[:,2] > (min_val[2] + 0.03))
+            print(min_list[0])
+            print(len(min_list[0]))
+            mesh_pcd = mesh_pcd.select_by_index(np.array(min_list))
+            print(len(mesh_pcd.points))
+            print('mesh_pcd.get_center()',mesh_pcd.get_center())
+
         return mesh_pcd, matrix
 
     def run_icp(self, depth_pcd, id:int, is_guide:bool = True):
         if is_guide:
             print("Guide")
-            mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd,np.array([0, 0, 0]))
+            mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd,np.array([0, 0, 0]), is_guide)
             mesh = copy.deepcopy(mesh_pcd)
             pose, cost = self.icp(mesh, depth_pcd, 20, 600)
             if CLASS[id]['rotate']:
-                mesh_pcd2, matrix2 = self.get_mesh_angle_pcd(id, depth_pcd, np.array([0, 0, np.pi]))
+                mesh_pcd2, matrix2 = self.get_mesh_angle_pcd(id, depth_pcd, np.array([0, 0, np.pi]), is_guide)
                 mesh = copy.deepcopy(mesh_pcd2)
                 pose2, cost2 = self.icp(mesh, depth_pcd, 20, 600)
                 if cost2 < cost:
                     pose = pose2
                     mesh_pcd = mesh_pcd2
                     matrix = matrix2
+                    print("\n\n\ncase 2\n\n\n")
+                mesh_pcd3, matrix3 = self.get_mesh_angle_pcd(id, depth_pcd, np.array([0, 0, np.pi/2]), is_guide)
+                mesh = copy.deepcopy(mesh_pcd3)
+                pose3, cost3 = self.icp(mesh, depth_pcd, 20, 600)
+                if cost3 < cost:
+                    pose = pose3
+                    mesh_pcd = mesh_pcd3
+                    matrix = matrix3
                     print("\n\n\ncase 2\n\n\n")
             return pose, mesh_pcd, matrix
                     
@@ -89,6 +108,9 @@ class ICP():
                     min_matrix = matrix
                     min_pose = pose
                     min_mesh_pcd = copy.deepcopy(mesh_pcd)
+                print(min_cost)
+                print(CLASS[id]["cost"])
+                print(iter)
                 if min_cost < CLASS[id]["cost"]: break
                 iter += 1
             print("Finish ICP. Iter: ", iter, ", Cost: ", min_cost)
@@ -126,6 +148,7 @@ class ICP():
             t = target_centroid - R @ source_centroid
             t = np.reshape(t, (1,3))
             curr_cost = np.linalg.norm(target_repos - (R @ source_repos.T).T)
+            print("Curr_cost=", curr_cost)
             if ((prev_cost - curr_cost) > self.cost_change_threshold):
                 prev_cost = curr_cost
                 transform_matrix = np.hstack((R, t.T))

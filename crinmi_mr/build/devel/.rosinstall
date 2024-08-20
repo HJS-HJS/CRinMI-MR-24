@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/build/devel/setup.sh

@@ -25,8 +25,9 @@ class GripperControlServer():
         return self.gripper.CurPos()
 
     def GripperMove(self, width):
-        # print("width val", width)
-        self.gripper.Move(width)
+        print("Move width (m)", width)
+        width_transformed = int((7800 - 100000 * width) / 2)
+        self.gripper.Move(width_transformed)
         return
         
     def GripperMoveGrip(self):

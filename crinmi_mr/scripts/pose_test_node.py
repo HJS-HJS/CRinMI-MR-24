@@ -28,6 +28,8 @@ class Test(object):
         self.workspace_config     = rospy.get_param("~robot")
         self.ip_config            = rospy.get_param("~robot_ip")[str(self.workspace_config)]
         self.pose_config          = rospy.get_param("~robot_pose")
+        self.match_tf_config      = rospy.get_param("~match_pose")
+        self.grip_tf_config       = rospy.get_param("~match_grip")   
         
         # ========= camera interface test =========
         camera = CameraInterface()
@@ -53,24 +55,23 @@ class Test(object):
         vis.pub_mesh()
 
         pose = np.eye(4)
-        self.tf_interface.add_stamp("base_link", "asset_1", pose, m = True, deg = False)
-        pose = pose2matrix([0, 0, -0.0235, 90, 0, 0])
-        self.tf_interface.add_stamp("asset_1", "asset_8", pose, m = True, deg = False)            
-        vis.pub_mesh()
 
-        rospy.sleep(1)
-        print(self.tf_interface.matrix("asset_8", "asset_1"))
-        rospy.sleep(5)
+        idx = 2
+        grip_points = self.grip_tf_config['a_cam_zig']
+        self.tf_interface.add_stamp("base_link", "asset_" + str(idx), pose, m = True, deg = False)
 
-        # # for i in range(0,17):
-        #     self.tf_interface.add_stamp("base_link", "asset_0", pose, m = True, deg = False)
-        #     pose = pose2matrix(0 -0.3 0, 0,0,0)
-        #     self.tf_interface.add_stamp("asset_0", "asset_", pose, m = True, deg = False)            
-        #     vis.pub_mesh()
-        #     rospy.sleep(5)
-        #     # self.tf_interface.broadcast_once()
+        for i, points in enumerate(grip_points):
+            pick_pose_r = np.eye(4)
+            pick_pose_l = np.eye(4)
+            pick_pose_r[:, 3] =  points[0][0], points[0][1], points[0][2], 1
+            pick_pose_l[:, 3] =  points[1][0], points[1][1], points[1][2], 1
 
-        vis.pub_mesh()
+            self.tf_interface.add_stamp("asset_" + str(idx), "pick_pose_r", pick_pose_r, m = True, deg = False)
+            self.tf_interface.add_stamp("asset_" + str(idx), "pick_pose_l", pick_pose_l, m = True, deg = False)
+            vis.pub_mesh()
+            rospy.sleep(5)
+
+            vis.pub_mesh()
             
         while True:
             user_input = input('Press enter to record, q to quit...')

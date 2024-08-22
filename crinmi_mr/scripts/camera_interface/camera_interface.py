@@ -274,7 +274,7 @@ class CameraInterface(object):
         for idx, seg in enumerate(segment_list):
             image = fig.add_subplot(axis, axis, idx + 1)
             image.imshow(seg[0])
-            image.set_title(seg[2])
+            # image.set_title(seg[2])
         plt.show()
 
 if __name__ == '__main__':

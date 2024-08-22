@@ -38,11 +38,13 @@ class VisualizeInterface(object):
         rospy.loginfo("[Visualize Interface] Imported")
         self.pcd_publisher = rospy.Publisher('mr_vis/pcd_raw', PointCloud2, queue_size=2)
         self.target_pcd_publisher = rospy.Publisher('mr_vis/target_pcd_raw', PointCloud2, queue_size=2)
-        self.mesh_publisher = rospy.Publisher('mr_vis/meshes', MarkerArray, queue_size=2)
         self.test_publisher = rospy.Publisher('mr_vis/test', PointCloud2, queue_size=2)
+        self.mesh_publisher = rospy.Publisher('mr_vis/meshes', MarkerArray, queue_size=2)
+        self.mesh_place_publisher = rospy.Publisher('mr_vis/meshes_place', MarkerArray, queue_size=2)
 
         mesh_dir    = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'mesh'))
         self.markerArray = MarkerArray()
+        self.markerArray_place = MarkerArray()
 
         files = [file for file in os.listdir(mesh_dir) if file.endswith(('.obj', '.stl'))]
         for marker_id, file in enumerate(files):
@@ -61,6 +63,25 @@ class VisualizeInterface(object):
             marker.color.b = 0.8
             marker.pose.orientation.w = 1.0
             self.markerArray.markers.append(marker)
+
+
+        files = [file for file in os.listdir(mesh_dir) if file.startswith(('a_'))]
+        for marker_id, file in enumerate(files):
+            rospy.loginfo('Loading file: %s', file)
+            marker = Marker()
+            marker.id = marker_id
+            marker.mesh_resource =  "package://crinmi_mr/mesh/" + file
+            marker.type = marker.MESH_RESOURCE
+            marker.header.frame_id = "asset_" + str(CLASS[os.path.splitext(file)[0]]) + "_place"
+            marker.scale.x = 0.001
+            marker.scale.y = 0.001
+            marker.scale.z = 0.001
+            marker.color.a = 1.0
+            marker.color.r = 0.8
+            marker.color.g = 0.8
+            marker.color.b = 0.8
+            marker.pose.orientation.w = 1.0
+            self.markerArray_place.markers.append(marker)
 
     def pub_pcd(self, pcd):
         _header = Header()
@@ -130,7 +151,10 @@ class VisualizeInterface(object):
         self.target_pcd_publisher.publish(pcd_msg)
     
     def pub_mesh(self):
-        # for asset in self.markerArray.markers:
-        #     asset.header.stamp = rospy.Time.now()
+        for asset in self.markerArray.markers:
+            asset.header.stamp = rospy.Time.now()
+        for asset in self.markerArray_place.markers:
+            asset.header.stamp = rospy.Time.now()
         self.mesh_publisher.publish(self.markerArray)
+        self.mesh_place_publisher.publish(self.markerArray_place)
         

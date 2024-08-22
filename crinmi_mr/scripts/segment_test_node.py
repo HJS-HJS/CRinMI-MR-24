@@ -54,8 +54,9 @@ class Test(object):
         # Generate TF msg
         # robot state for test
         rospy.sleep(1)
-        read_num = "0063"
-        # read_num = "0064"
+        # read_num = "0061"
+        # read_num = "0062"
+        read_num = "0070"
         robot_state = camera.temp_read_state(read_num)
         # robot_state = np.array(
         #     [
@@ -79,9 +80,19 @@ class Test(object):
         segment_server.run(color_img)
         seg = segment_server.img2SegmentMask()
         camera.vis_segment(seg)
+        segg = []
         for idx in seg:
-            obj_seg = idx[0]
-            obj_depth = obj_seg * camera.depth_img
+            _temp = []
+            # obj_seg = cv2.erode(idx[0], None, iterations=5) # guide
+            obj_seg = cv2.erode(idx[0], None, iterations=2) # asset
+            _temp.append(obj_seg)
+            _temp.append(idx[1])
+            _temp.append(idx[2])
+            segg.append(_temp)
+        # camera.vis_segment(segg)
+        for idx in segg:
+            # obj_seg = cv2.dilate(idx[0], np.ones((3, 3)))
+            obj_depth = idx[0] * camera.depth_img
             obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
             vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
 
@@ -90,7 +101,7 @@ class Test(object):
             print("asset_" + str(idx[-1]))
             vis.pub_test_pcd(test_pcd)
             vis.pub_mesh()
-            break
+
             # camera.vis_pcd(obj_pcd, reduction_ratio=1) # visualize with matplotlib
         # idx = 9
         # obj_seg = seg[idx][0]

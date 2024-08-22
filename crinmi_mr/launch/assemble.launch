@@ -5,6 +5,8 @@
     <rosparam command="load" file="$(find crinmi_mr)/config/workspace.yaml" />
     <rosparam command="load" file="$(find crinmi_mr)/config/robot_ip.yaml" />
     <rosparam command="load" file="$(find crinmi_mr)/config/robot_pose/robot_pose.yaml" />
+    <rosparam command="load" file="$(find crinmi_mr)/config/grip_matching/match_grip.yaml" />
+    <rosparam command="load" file="$(find crinmi_mr)/config/guide_matching/match_pose.yaml" />
   </node>
 
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find crinmi_mr)/rviz/rviz.rviz" />

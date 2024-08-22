@@ -40,6 +40,7 @@ class Crinmi_TransformStamped(TransformStamped):
             rotation = tf.quaternion_from_matrix(rotation)
         else:
             pass
+        rotation = rotation / np.linalg.norm(rotation)
         self.transform.rotation.x = rotation[0]
         self.transform.rotation.y = rotation[1]
         self.transform.rotation.z = rotation[2]

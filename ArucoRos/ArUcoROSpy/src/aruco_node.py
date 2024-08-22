@@ -96,6 +96,21 @@ class ImageConverter(object):
                 ValueError("Invalid marker transform file")
         #--------------------------------#
         
+        #---- Used at calculating transformation ----#
+        self.c_f_trans = np.array([[-1.,          0.,          0.,         0.02757973333],
+                                   [ 0.,          1.,          0.,         0.05170106344],
+                                   [ 0.,          0.,         -1.,        0.14195746682],
+                                   [ 0.,          0.,          0.,          1.        ]])
+        self.f_e_trans = np.array([[ 1.,          0.,          0.,         0.0],
+                                   [ 0.,          1.,          0.,         0.0],
+                                   [ 0.,          0.,          1.,        0.246],
+                                   [ 0.,          0.,          0.,          1.        ]])
+        self.e_b_trans = np.array([[-1.,          0.,          0.,         27.57973333],
+                                   [ 0.,          1.,          0.,         51.70106344],
+                                   [ 0.,          0.,         -1.,        141.95746682],
+                                   [ 0.,          0.,          0.,          1.        ]])
+        #--------------------------------------------#
+        
         self.start_time = rospy.get_time()
         self.duration = 3.0
         self.marker_pose_dict = {}
@@ -217,6 +232,19 @@ class ImageConverter(object):
                     tf_marker.transform.translation = marker_pose.position
                     tf_marker.transform.rotation = marker_pose.orientation
                     self.tf_brodcaster.sendTransform(tf_marker)
+                
+                if save_pose == True:
+                    current_time = rospy.get_time()
+                    if int(marker_id) not in self.marker_pose_dict:
+                        self.marker_pose_dict[int(marker_id)] = {'trans': [], 'rot': []}
+                    trans, rot = utils.pose_to_quat_trans(marker_pose)
+                    self.marker_pose_dict[int(marker_id)]['trans'].append(trans)
+                    self.marker_pose_dict[int(marker_id)]['rot'].append(rot)
+                    # rospy.loginfo(self.marker_pose_dict.keys())
+                    if current_time - self.start_time > self.duration:
+                        self.save_average_poses()
+                        self.marker_pose_dict = {}
+                        self.start_time = rospy.get_time()
 
                 marker_pose_list.poses.append(marker_pose)
                 id_list.append(int(marker_id))
@@ -226,41 +254,33 @@ class ImageConverter(object):
 
         else:
             output_img = img
-
         out_img = Image()
         out_img = self.bridge.cv2_to_imgmsg(output_img, "bgr8")
         self.aruco_pub.publish(out_img)
-        
-        if save_pose == True:
-            current_time = rospy.get_time()
-            if marker_id not in self.marker_pose_dict:
-                    self.marker_pose_dict[marker_id] = {'trans': [], 'rot': []}
-                
-            self.marker_pose_dict[marker_id]['trans'].append(tvec)
-            self.marker_pose_dict[marker_id]['rot'].append(rvec)
-            if current_time - self.start_time > self.duration:
-                    self.save_average_poses()
-                    self.marker_pose_dict = {}
-                    self.start_time = rospy.get_time()
     
         return output_img, marker_pose_list, id_list
 
-    def save_average_poses(self):
+    def save_average_poses(self, base=False):
         avg_marker_poses = {}
         for marker_id, poses in self.marker_pose_dict.items():
             trans_list = np.array(poses['trans'])
             rot_list = np.array(poses['rot'])
+            rospy.loginfo(marker_id)
 
             if len(rot_list) > 2:
-                z_axis = np.array([0, 0, 1])
-                z_rotated = np.einsum("ijk,k->ij", rot_list[:, :3, :3], z_axis)
+                rotation_mtxs = np.array(
+                    [tf.transformations.quaternion_matrix(rt) for rt in rot_list])
+                z_axis = np.array([0, 0, 1, 1])
+                z_rotated = np.einsum(
+                    "ijk,k->ij", rotation_mtxs[:, 0:3, 0:3], z_axis[0:3])
+                z_rotated = np.squeeze(z_rotated)
                 z_rotated_compare = np.dot(z_rotated, z_rotated.T)
 
                 col_avg = np.average(z_rotated_compare, axis=0)
                 outlier = np.argmin(col_avg)
-
-                trans_list = np.delete(trans_list, outlier, axis=0)
+                
                 rot_list = np.delete(rot_list, outlier, axis=0)
+                trans_list = np.delete(trans_list, outlier, axis=0)
 
             if len(rot_list) > 1:
                 avg_trans = np.mean(trans_list, axis=0)
@@ -268,13 +288,39 @@ class ImageConverter(object):
             else:
                 avg_trans = trans_list[0]
                 avg_rot = rot_list[0]
+                
+            if base == True:
+                avg_trans, avg_rot = self.transform_marker_pose(avg_trans, avg_rot)
+            else:
+                avg_marker_poses[f'marker_{marker_id}_pose'] = np.hstack((avg_trans, avg_rot))
 
-            avg_marker_poses[f'marker_{marker_id}_trans'] = avg_trans
-            avg_marker_poses[f'marker_{marker_id}_rot'] = avg_rot
-
-        file_path = os.path.join('/home/kkw0418/Desktop', 'average_poses.npz')
+        file_path = os.path.join('/home/kkw0418/Desktop', 'capture_pose.npz')
         np.savez(file_path, **avg_marker_poses)
+        # rospy.loginfo("rot_list".format())
+        # rospy.loginfo(avg_rot)
         rospy.loginfo("Saved average poses to {}".format(file_path))
+        
+    def transform_marker_pose(self, tvec, rvec):
+        """
+        camera coordinate to robot base coordinate
+        """
+        
+        # camera coordinate 4x4 transformation matrix
+        c_m_trans = utils.quat_trans_to_matrix(tvec, rvec)
+        
+        # Camera -> Finger-tip
+        f_m_trans = np.dot(self.c_f_trans, c_m_trans)
+        
+        # Finger-tip -> End-effector
+        e_m_trans = np.dot(self.f_e_trans, f_m_trans)
+        
+        # End-effector -> Robot-Base
+        b_m_trans = np.dot(self.e_b_trans, e_m_trans)
+        
+        # base coordinate quaternion
+        tvec, rvec = utils.matrix_to_quat_trans(b_m_trans)
+        
+        return tvec, rvec
 
     def make_pose(self, rvec, tvec):
         """

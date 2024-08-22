@@ -131,5 +131,6 @@ class VisualizeInterface(object):
     
     def pub_mesh(self):
         # for asset in self.markerArray.markers:
-            # asset.header.stamp = rospy.Time.now()
+        #     asset.header.stamp = rospy.Time.now()
         self.mesh_publisher.publish(self.markerArray)
+        

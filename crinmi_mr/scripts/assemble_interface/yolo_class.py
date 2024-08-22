@@ -1,8 +1,8 @@
 CLASS = {
     
-    0:  {'name': 'a_L_shape_angle'      , 'type': '.obj', 'cost': 0.05, 'stop_idx': 20, "stop_threshold": 0.18  , "voxel_size" : 0.0007, 'number_of_points': 6000},
-    1:  {'name': 'a_bearing_holder'     , 'type': '.obj', 'cost': 0.05, 'stop_idx': 1, "stop_threshold": 5.55   , "voxel_size" : 0.0007, 'number_of_points': 6000},
-    2:  {'name': 'a_cam_zig'            , 'type': '.obj', 'cost': 0.05, 'stop_idx': 1, "stop_threshold": 5.55   , "voxel_size" : 0.0007, 'number_of_points': 6000},
+    0:  {'name': 'a_L_shape_angle'      , 'type': '.stl', 'cost': 0.05, 'stop_idx': 20, "stop_threshold": 0.18  , "voxel_size" : 0.0007, 'number_of_points': 6000},
+    1:  {'name': 'a_bearing_holder'     , 'type': '.stl', 'cost': 0.05, 'stop_idx': 1, "stop_threshold": 5.55   , "voxel_size" : 0.0007, 'number_of_points': 6000},
+    2:  {'name': 'a_cam_zig'            , 'type': '.stl', 'cost': 0.05, 'stop_idx': 1, "stop_threshold": 5.55   , "voxel_size" : 0.0007, 'number_of_points': 6000},
     3:  {'name': 'a_hex_wrench'         , 'type': '.obj', 'cost': 0.05, 'stop_idx': 1, "stop_threshold": 5.55   , "voxel_size" : 0.0007, 'number_of_points': 6000},
     4:  {'name': 'a_rod_end_bearing'    , 'type': '.stl', 'cost': 0.05, 'stop_idx': 1, "stop_threshold": 5.55   , "voxel_size" : 0.0008, 'number_of_points': 6000},
     5:  {'name': 'a_roller'             , 'type': '.stl', 'cost': 0.0643, 'stop_idx': 15, "stop_threshold": 0.18   , "voxel_size" : 0.0007, 'number_of_points': 4000},

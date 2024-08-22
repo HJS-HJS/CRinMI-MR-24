@@ -83,11 +83,6 @@ class Test(object):
             obj_seg = idx[0]
             obj_depth = obj_seg * camera.depth_img
             obj_pcd = camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
-            # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.01)]
-            # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] < 0.5)]
-            # obj_pcd = obj_pcd[np.where(obj_pcd[:,2] > 0.5)]
-            # print(obj_pcd)
-            # obj_pcd = obj_pcd[np.where(pcd[:,2] < 0.03)]
             vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
 
             pose, test_pcd = self.assemble.get_pose(obj_pcd, idx[-1])
@@ -95,7 +90,7 @@ class Test(object):
             print("asset_" + str(idx[-1]))
             vis.pub_test_pcd(test_pcd)
             vis.pub_mesh()
-
+            break
             # camera.vis_pcd(obj_pcd, reduction_ratio=1) # visualize with matplotlib
         # idx = 9
         # obj_seg = seg[idx][0]

@@ -7,7 +7,7 @@ import rospkg
 
 from yolo_class import CLASS
 
-id = 12
+id = 2
 
 mesh_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'mesh'))
 
@@ -23,5 +23,5 @@ mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=100, origin=
 vis.add_geometry(mesh_frame)
 vis.run()
 
-
-# o3d.io.write_triangle_mesh(mesh_dir + "/" + CLASS[id]['name'] + '_test' + CLASS[id]['type'], mesh)
+mesh = o3d.geometry.TriangleMesh.compute_triangle_normals(mesh)
+o3d.io.write_triangle_mesh(mesh_dir + "/" + CLASS[id]['name'] + '_test' + CLASS[id]['type'], mesh)

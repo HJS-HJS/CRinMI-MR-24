@@ -1,6 +1,5 @@
 import numpy as np
 import copy
-# from icp import ICP
 from assemble_interface.icp import ICP
 
 class AssembleInterface():
@@ -11,11 +10,10 @@ class AssembleInterface():
 
         print("target:\t", ICP.get_class_name(id))
         if id <= 5:
-            icp = ICP(0.001, 0.002)
+            icp = ICP(0.001, 0.0000001)
             is_guide = False
         else:
-            # icp = ICP(0.001, 0.001)
-            icp = ICP(0.001, 0.005)
+            icp = ICP(0.001, 0.0005)
             is_guide = True
 
         depth_pcd = icp.get_depth_pcd(pcd, id, is_guide)
@@ -24,8 +22,8 @@ class AssembleInterface():
         translate[0:3,3] += [0, 0, -0.02]
 
         pose, mesh_pcd, matrix = icp.run_icp(depth_pcd, id, is_guide)
-        icp.vis_pcd(depth_pcd, mesh_pcd)
-        icp.vis_pcd(depth_pcd, mesh_pcd, pose)
+        # icp.vis_pcd(depth_pcd, mesh_pcd)
+        # icp.vis_pcd(depth_pcd, mesh_pcd, pose)
 
         mesh_pcd.transform(pose)
 

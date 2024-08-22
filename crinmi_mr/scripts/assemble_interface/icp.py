@@ -19,10 +19,23 @@ class ICP():
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(np_pcd)
         voxel_down_pcd = pcd.voxel_down_sample(voxel_size=CLASS[id]['voxel_size'])
-        cl, ind = voxel_down_pcd.remove_statistical_outlier(nb_neighbors=200, std_ratio=0.02)
-        depth_pcd = voxel_down_pcd.select_by_index(ind)
+        if is_guide:
+            depth_pcd = voxel_down_pcd
+        else:
+            cl, ind = voxel_down_pcd.remove_statistical_outlier(nb_neighbors=120, std_ratio=0.01)
+            depth_pcd = voxel_down_pcd.select_by_index(ind)
+            # depth_pcd = voxel_down_pcd
+        
         print("points num: ", len(depth_pcd.points))
-        # if len(depth_pcd.points) > 4000:
+        if id == 12:
+            min_val = np.min(depth_pcd.points,axis=0)
+            min_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val[2] + 0.005))
+            depth_pcd = depth_pcd.select_by_index(np.array(min_list[0]))
+        else:
+            min_val = np.min(depth_pcd.points,axis=0)
+            min_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val[2] + 0.001))
+            depth_pcd = depth_pcd.select_by_index(np.array(min_list[0]))
+
         # if id == 11:
             # print("down sample")
             # depth_pcd = depth_pcd.voxel_down_sample(voxel_size=self.voxel_size*1.5)
@@ -45,21 +58,21 @@ class ICP():
         return mesh_pcd, matrix
     
     def get_mesh_angle_pcd(self, id, depth_pcd, angle_list:np.array=np.array([0, 0, 0]), is_guide:bool = False):
-        mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
-        mesh.scale(0.001, center=([0, 0, 0]))
-        mesh_pcd = mesh.sample_points_uniformly(number_of_points = CLASS[id]['number_of_points'])
-        mesh_pcd = mesh_pcd.voxel_down_sample(voxel_size=self.voxel_size)
-        mesh_pcd.paint_uniform_color([0.1, 0.1 ,0.1])
-        angle_set = np.array([np.pi/2, 0, 0]) + angle_list
-        matrix = tf.transformations.euler_matrix(angle_set[0], angle_set[1], angle_set[2])
-        matrix[0:3,3] = depth_pcd.get_center() - mesh_pcd.get_center()
-        mesh_pcd.transform(matrix)
         if is_guide:
-            mesh_pcd.translate([0, 0, -0.025])
-            matrix[0:3,3] += [0, 0, -0.025]
+            mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
+            mesh.scale(0.001, center=([0, 0, 0]))
+            mesh_pcd = mesh.sample_points_uniformly(number_of_points = CLASS[id]['number_of_points'])
+            mesh_pcd = mesh_pcd.voxel_down_sample(voxel_size=self.voxel_size)
+            mesh_pcd.paint_uniform_color([0.1, 0.1 ,0.1])
+            angle_set = np.array([np.pi/2, 0, 0]) + angle_list
+            matrix = tf.transformations.euler_matrix(angle_set[0], angle_set[1], angle_set[2])
+            matrix[0:3,3] = depth_pcd.get_center() - mesh_pcd.get_center()
+            mesh_pcd.transform(matrix)
+            mesh_pcd.translate([0, 0, -0.015])
+            matrix[0:3,3] += [0, 0, -0.015]
             if id == 12:
                 max_val = np.max(depth_pcd.points,axis=0)[2]
-                max_list = np.where(np.array(depth_pcd.points)[:,2] > (max_val - 0.003))
+                max_list = np.where(np.array(depth_pcd.points)[:,2] > (max_val - 0.0015))
                 depth_up_pcd = copy.deepcopy(depth_pcd).select_by_index(np.array(max_list[0]))
                 trans = depth_up_pcd.get_center() - mesh_pcd.get_center()
                 trans[2] = 0
@@ -70,37 +83,69 @@ class ICP():
             min_list = np.where(np.array(mesh_pcd.points)[:,2] > (min_val[2] + 0.001))
             mesh_pcd = mesh_pcd.select_by_index(np.array(min_list[0]))
         else:
-            mesh_pcd.translate([0, 0, -0.02])
-            matrix[0:3,3] += [0, 0, -0.02]
+            mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
+            mesh.scale(0.001, center=([0, 0, 0]))
+            mesh_pcd = mesh.sample_points_uniformly(number_of_points = CLASS[id]['number_of_points'])
+            mesh_pcd = mesh_pcd.voxel_down_sample(voxel_size=self.voxel_size)
+            mesh_pcd.paint_uniform_color([0.1, 0.1 ,0.1])
+
+            # rotation
+            eigen_angle = self.eigen_angle(mesh_pcd)
+            angle_set = np.array([np.pi/2, 0, -eigen_angle]) + angle_list
+            matrix = tf.transformations.euler_matrix(angle_set[0], angle_set[1], angle_set[2])
+            mesh_pcd.transform(matrix)
+
+            # transform
+            matrix[0:3,3] = depth_pcd.get_center() - mesh_pcd.get_center()
+            mesh_pcd.translate(matrix[0:3,3])
+            mesh_pcd.translate([0, 0, -0.015])
+            matrix[0:3,3] += [0, 0, -0.015]
+            min_val = np.min(mesh_pcd.points,axis=0)
+            if id == 1:
+                min_list = np.where(np.array(mesh_pcd.points)[:,2] > (min_val[2] + 0.001))
+            elif id == 3:
+                min_list = np.where(np.array(mesh_pcd.points)[:,2] > (min_val[2] + 0.001))
+            else: 
+                min_list = np.where(np.array(mesh_pcd.points)[:,2] > (min_val[2] + 0.004))
+            mesh_pcd = mesh_pcd.select_by_index(np.array(min_list[0]))
         return mesh_pcd, matrix
 
     def run_icp(self, depth_pcd, id:int, is_guide:bool = True):
+
+        eigen_angle = self.eigen_angle(depth_pcd)
+
         if is_guide:
             print("Guide")
-            mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd,np.array([0, 0, 0]), is_guide)
-            mesh = copy.deepcopy(mesh_pcd)
-            pose, cost = self.icp(mesh, depth_pcd, 20, 600)
-            if CLASS[id]['rotate']:
-                # for i in range(2):
-                #     print('case ', i + 1)
-                #     mesh_pcd2, matrix2 = self.get_mesh_angle_pcd(id, depth_pcd, np.array([0, 0, np.pi * 2 / 3 * (i + 1)]), is_guide)
-                #     mesh = copy.deepcopy(mesh_pcd2)
-                #     pose2, cost2 = self.icp(mesh, depth_pcd, 20, 600)
-                #     if cost2 < cost:
-                #         pose = pose2
-                #         mesh_pcd = mesh_pcd2
-                #         matrix = matrix2
-                #         print("\ncase ", i + 1,"\n")
-                print('case 2')
-                mesh_pcd2, matrix2 = self.get_mesh_angle_pcd(id, depth_pcd, np.array([0, 0, np.pi]), is_guide)
-                mesh = copy.deepcopy(mesh_pcd2)
-                pose2, cost2 = self.icp(mesh, depth_pcd, 20, 600)
-                if cost2 < cost:
-                    pose = pose2
-                    mesh_pcd = mesh_pcd2
-                    matrix = matrix2
-                    print("\ncase 2\n")
-            return pose, mesh_pcd, matrix
+            min_cost   = 1000.0
+            min_pose   = np.eye(4)
+            min_matrix = np.eye(4)
+            min_mesh_pcd = None
+            if CLASS[id]['rotate'] > 10:
+                angle_num = CLASS[id]['rotate'] % 10
+                for i in range(angle_num + 1):
+                    print('case ', i)
+                    angle = [0, 0, eigen_angle + np.pi / 4 / angle_num * i]
+                    mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
+                    mesh = copy.deepcopy(mesh_pcd)
+                    pose, cost = self.icp(mesh, depth_pcd)
+                    if cost < min_cost:
+                        min_cost = cost
+                        min_matrix = matrix
+                        min_pose = pose
+                        min_mesh_pcd = copy.deepcopy(mesh_pcd)
+            else:
+                for i in range(CLASS[id]['rotate']):
+                    print('case ', i)
+                    angle = [0, 0, eigen_angle + np.pi * 2 / CLASS[id]['rotate'] * (i)]
+                    mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
+                    mesh = copy.deepcopy(mesh_pcd)
+                    pose, cost = self.icp(mesh, depth_pcd)
+                    if cost < min_cost:
+                        min_cost = cost
+                        min_matrix = matrix
+                        min_pose = pose
+                        min_mesh_pcd = copy.deepcopy(mesh_pcd)
+            return min_pose, min_mesh_pcd, min_matrix
                     
         else:
             print("Assmeble")
@@ -108,37 +153,50 @@ class ICP():
             min_pose = np.eye(4)
             min_matrix = np.eye(4)
             min_mesh_pcd = None
-            iter_limit = 20
-            iter = 0
-            while iter < iter_limit:
-                mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(np.random.random(3) * np.pi * 2))
+            for i in range(CLASS[id]['rotate']):
+                print('case ', i)
+                angle = [0, 0, eigen_angle + np.pi * 2 / CLASS[id]['rotate'] * (i)]
+                mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
                 mesh = copy.deepcopy(mesh_pcd)
-                pose, cost = self.icp(mesh, depth_pcd, CLASS[id]['stop_idx'], CLASS[id]['stop_threshold'])
+                pose, cost = self.icp(mesh, depth_pcd)
                 if cost < min_cost:
                     min_cost = cost
                     min_matrix = matrix
                     min_pose = pose
                     min_mesh_pcd = copy.deepcopy(mesh_pcd)
-                if min_cost < CLASS[id]["cost"]: break
-                iter += 1
-            print("Finish ICP. Iter: ", iter, ", Cost: ", min_cost)
+            if CLASS[id]['next_form'] is not None:
+                for case in CLASS[id]['next_form']:
+                    if case[1] > 10:
+                        angle_set = np.pi / 2 / ((case[1] - 1) % 10)
+                    else: 
+                        angle_set = np.pi * 2 / case[1]
+                    for i in range(case[1]%10):
+                        print('case ', i)
+                        angle = np.array(case[0]) + [0, 0, eigen_angle + angle_set * (i)]
+                        mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
+                        mesh = copy.deepcopy(mesh_pcd)
+                        pose, cost = self.icp(mesh, depth_pcd)
+                        if cost < min_cost:
+                            min_cost = cost
+                            min_matrix = matrix
+                            min_pose = pose
+                            min_mesh_pcd = copy.deepcopy(mesh_pcd)
+
             return min_pose, min_mesh_pcd, min_matrix
 
-    def icp(self, source, target, stop_idx, stop_threshold):
+    def icp(self, source, target):
         target_points = np.asarray(target.points)
 
         # While loop variables
         curr_iteration = 0
-        # cost_change_threshold = 0.005
-        self.cost_change_threshold = 0.000005
         curr_cost = 1000
-        prev_cost = 10000
+        prev_cost = 10000 
 
         total_transform_matrix = np.eye(4)
 
         while (True):
             # 1. Find nearest neighbors
-            new_source_points = self.find_nearest_neighbors(source, target, 1)
+            new_source_points = self.find_nearest_neighbors(source, target, 3)
 
             # 2. Find point cloud centroids and their repositions
             source_centroid = np.mean(new_source_points, axis=0)
@@ -149,14 +207,17 @@ class ICP():
             target_repos = np.asarray([target_points[ind] - target_centroid for ind in range(len(target_points))])
 
             # 3. Find correspondence between source and target point clouds
-            cov_mat = target_repos.transpose() @ source_repos
+            cov_mat = np.zeros((3,3))
+            cov_mat[:2,:2] = (target_repos.transpose() @ source_repos)[:2,:2]
+            # cov_mat = target_repos.transpose() @ source_repos
+
 
             U, X, Vt = np.linalg.svd(cov_mat)
             R = U @ Vt
             t = target_centroid - R @ source_centroid
             t = np.reshape(t, (1,3))
             curr_cost = np.linalg.norm(target_repos - (R @ source_repos.T).T)
-            print("Curr_cost=", curr_cost)
+            # print("Curr_cost=", curr_cost)
             if ((prev_cost - curr_cost) > self.cost_change_threshold):
                 prev_cost = curr_cost
                 transform_matrix = np.hstack((R, t.T))
@@ -166,8 +227,6 @@ class ICP():
                 total_transform_matrix = total_transform_matrix @ transform_matrix
                 curr_iteration += 1
             else:
-                break
-            if (curr_iteration > stop_idx) and (curr_cost > stop_threshold):
                 break
         print("Curr_cost=", curr_cost)
         print("\nIteration=", curr_iteration)
@@ -192,10 +251,10 @@ class ICP():
         mesh = copy.deepcopy(mesh_pcd).transform(mesh_transpose)
         vis.add_geometry(depth_pcd)
         vis.add_geometry(mesh)
-        # depth_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=depth_pcd.get_center())
-        # mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=mesh.get_center())
-        # vis.add_geometry(depth_frame)
-        # vis.add_geometry(mesh_frame)
+        depth_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=depth_pcd.get_center())
+        mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=mesh.get_center())
+        vis.add_geometry(depth_frame)
+        vis.add_geometry(mesh_frame)
         vis.run()
 
     @staticmethod
@@ -205,3 +264,10 @@ class ICP():
     @staticmethod
     def rotation_matrix(list):
         return tf.transformations.euler_matrix(list[0], list[1], list[2])
+    
+    @staticmethod
+    def eigen_angle(depth_pcd):
+        array = np.asarray(depth_pcd.points)[:,:2]
+        eigen_value, vector = np.linalg.eig(np.cov(array[:,0], array[:,1]))
+        vector = vector[np.argmax(eigen_value)]
+        return -np.arctan2(vector[1], vector[0])

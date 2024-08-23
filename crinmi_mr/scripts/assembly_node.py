@@ -367,20 +367,32 @@ class Test(object):
         base2assemble = self.tf_interface.matrix('base_link', 'asset_' + str(assemble_idx))
         guide2place_set = np.array(self.match_tf_config[str(guide_idx)])
 
-        for guide2place in guide2place_set:
+        # for guide2place in guide2place_set:
             
-            print(grasp_matrix)
-            print(base2assemble)
+        #     print(grasp_matrix)
+        #     print(base2assemble)
             
-            assemble2grasp = np.linalg.inv(base2assemble) @ grasp_matrix
-            base2assemble2 = base2guide@guide2place
-            base2place = base2assemble2 @ assemble2grasp
-            if base2place[2,3] > 0:
-                self.tf_interface.add_stamp('base_link', 'place', base2place, m = True, deg = False)
-                self.vis.pub_mesh()
-                self.tf_interface.broadcast_once()
-                rospy.sleep(1)
-                return
+        #     assemble2grasp = np.linalg.inv(base2assemble) @ grasp_matrix
+        #     base2assemble2 = base2guide@guide2place
+        #     base2place = base2assemble2 @ assemble2grasp
+        #     if base2place[2,3] > 0:
+        #         self.tf_interface.add_stamp('base_link', 'place', base2place, m = True, deg = False)
+        #         self.vis.pub_mesh()
+        #         self.tf_interface.broadcast_once()
+        #         rospy.sleep(1)
+        #         return
+
+        assemble2grasp = np.linalg.inv(base2assemble) @ grasp_matrix
+        base2assemble2 = np.dot(base2guide, guide2place_set)
+        base2place = np.dot(base2assemble2, assemble2grasp)
+        print("place candidate: ", base2place.shape)
+
+        arg = np.argmax(base2place[:,2,3])
+
+        self.tf_interface.add_stamp('base_link', 'place', base2place[arg], m = True, deg = False)
+        self.vis.pub_mesh()
+        self.tf_interface.broadcast_once()
+        rospy.sleep(1)
 
         # if 
         #     print("GUIDE POSE NOT FOUND")

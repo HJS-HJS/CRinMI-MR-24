@@ -40,22 +40,10 @@ class Test(object):
         rospy.loginfo('TF Interface Ready')
         # ========= tf marker posision test =========
         marker_dir = "/aruco/capture_pose3_keti.npz"
-        aruco_list = ["4", "5", "30", "36"]
-        target_idx = "36"
-        self.marker_set           = np.load(config_file + marker_dir)
-        rospy.sleep(1)
-        for id in aruco_list:
-            self.tf_interface.add_stamp("camera_color_optical_frame", "marker" + id, self.marker_set["marker_" + id + "_pose"], m = True, deg = False)
-        marker_offset = np.array([0, 0])
+
         
         rospy.sleep(1)
         robot_state = robot_server.RecvRobotState()
-        # robot_state = np.array([
-        #                 [-0.31262184, -0.01071513,  0.94981723,  0.00150843],
-        #                 [ 0.94985115, -0.01099754,  0.31250894, -0.66986597],
-        #                 [ 0.00709708,  0.99988211,  0.01361585,  0.78295249],
-        #                 [ 0.        ,  0.        ,  0.        ,  1.        ],])
-        # print(robot_state)
 
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
 
@@ -63,89 +51,14 @@ class Test(object):
         pcd = camera.pcd(np.eye(4))
         vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
 
-        gripper_server.GripperMoveGrip()
-        print(self.tf_interface.matrix(target="base_link", source="marker"+target_idx))
-        # while True:
-        #     user_input = input('Press enter to start, q to quit...')
-        #     if user_input == 'q':
-        #         break
-        #     elif user_input == '':
-        #         gripper_server.GripperMoveGrip()
-        #         self.execution(self.tf_interface.matrix(target="base_link", source="marker"+target_idx))
-        #     else:
-        #         pass
+        cam_matrix = np.array([
+            [-0.16250631,  0.07355739, -0.9839619 , -0.20280181],
+            [-0.07141773, -0.99547869, -0.06262334, -0.68059322],
+            [-0.98411951,  0.06009564,  0.16702487,  0.63328667],
+            [ 0.        ,  0.        ,  0.        ,  1.        ],
+            ])
 
 
-    def SpinOnce(self):
-        # self.tf_interface.broadcast()
-        pass
-
-    def create_target_poses(self, marker_pose):
-        '''
-        Return target poses(unit: mm)
-        Target poses are aligned with the z-axis to marker pose
-
-        target_pose: offset(260mm) in z-axis from marker_pose to avoid gripper collision
-        pre_target_pose: offset(90mm) in z-axis from target_pose to avoid moving collision
-        
-        '''
-
-        # create base pose aligned with marker pose's z-axis
-        base_pose = np.eye(4)
-        base_pose[:3,:3] = rotation(90, 0, -37)
-
-        # calculate target_pose
-        target_pose = base_pose
-        target_pose[:3, 3] = marker_pose[: 3]
-        target_pose = target_pose[2, 3] - 260
-        
-        # calculate pre_target_pose
-        pre_target_pose = target_pose[2, 3] - 350
-        
-        return pre_target_pose, target_pose
-
-    def execution(self, marker_pose):
-        '''
-        Execute scenario
-
-        1. Read marker poses
-        2. Move to home pose
-        3. Move to pre target pose
-        4. Move to target pose
-        '''
-
-        # Setting robot velocity
-        rospy.loginfo('Set Velocity 10')
-        self.robot_server.SetVelocity(10)
-
-        # Calculate target poses
-        rospy.loginfo('Create target poses')
-        pre_target_pose, target_pose = self.create_target_poses(marker_pose=marker_pose)
-
-        # Move to home_pose
-        rospy.sleep(2)
-        rospy.loginfo('Move to Home pose using MoveJ')
-        self.robot_server.RobotMoveJ(self.pose_config["home_pose"])
-        while not self.robot_server.wait:
-            rospy.sleep(1)
-
-        # Move to pre_target_pose
-        rospy.sleep(5)
-        rospy.loginfo('Move to pre_target_pose pose using MoveL')
-        self.robot_server.RobotMoveL(pre_target_pose)
-        rospy.sleep(1)
-        while not self.robot_server.wait:
-            rospy.sleep(1)
-        
-        # Move to target_pose
-        rospy.sleep(5)
-        rospy.loginfo('Move to target_pose pose using MoveL')
-        self.robot_server.RobotMoveL(target_pose)
-        rospy.sleep(1)
-        while not self.robot_server.wait:
-            rospy.sleep(1)
-
-        return
     
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')

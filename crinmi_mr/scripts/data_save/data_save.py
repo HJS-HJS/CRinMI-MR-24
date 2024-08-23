@@ -11,8 +11,8 @@ class DataSaveInterface(object):
         file_list = os.listdir(self.save_dir)
         return len(file_list)
 
-    def save_data(self, *arg):
-        name = ("/depth_%0" + str(self.FILE_ZERO_PADDING_NUM) + 'd.p')%(self.idx)
+    def save_data(self, name: str = "test", *arg):
+        name = ("/" + name + "_%0" + str(self.FILE_ZERO_PADDING_NUM) + 'd.p')%(self.idx)
         with open(self.save_dir + name, 'wb') as f:
             pickle.dump(arg, f)
         self.idx +=1

@@ -294,7 +294,7 @@ class ImageConverter(object):
             else:
                 avg_marker_poses[f'marker_{marker_id}_pose'] = np.hstack((avg_trans, avg_rot))
 
-        file_path = os.path.join('/home/kkw0418/Desktop', 'capture_pose.npz')
+        file_path = os.path.join('/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/calibrate_interface', 'capture_pose.npz')
         np.savez(file_path, **avg_marker_poses)
         # rospy.loginfo("rot_list".format())
         # rospy.loginfo(avg_rot)

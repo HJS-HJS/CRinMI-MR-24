@@ -62,6 +62,7 @@ class Test(object):
                 self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
                 print("\trecord: ", 
                     self.data_save.save_data(
+                    "guide_ex",
                     camera.color_img_msg, 
                     camera.depth_img_msg,
                     camera.color_cam_info_msg,

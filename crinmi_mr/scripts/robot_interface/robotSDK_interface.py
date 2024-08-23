@@ -24,7 +24,7 @@ class RobotControlServer():
         self.rb10.SetRobotConf(RB10, robot_ip, 5000)
         
         # robot connection check
-        robot_connected = self.rb10.RobotConnect() 
+        robot_connected = self.rb10.RobotConnect()
         assert robot_connected is True, "robot connection is not established!!"
 
         # Set default robot velocity

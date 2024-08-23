@@ -26,10 +26,19 @@ class GripperControlServer():
 
     def GripperMove(self, width):
         print("Move width (m)", width)
-        width_transformed = int((7800 - 100000 * width) / 2)
+        width_transformed = int((3997.5 - width * 48750))
+        print(width_transformed)
         self.gripper.Move(width_transformed)
         return
         
+    def GripperTest(self):
+        
+        for i in range(5):
+            width = (i + 1) * 0.01
+            self.gripper.GripperMove(width)
+            time.sleep(5)
+        return
+    
     def GripperMoveGrip(self):
         self.gripper.Grip()
         return 
@@ -50,6 +59,23 @@ class GripperControlServer():
 
 if __name__ == '__main__':
     controller = GripperControlServer('192.168.3.113')
+    controller.GripperMoveGrip()
+    controller.GripperMoveRelease()
+    # controller.GripperTest()
+    time.sleep(5)
+    controller.GripperMove(0.02)
+    time.sleep(5)
+    controller.GripperMoveGrip()
+    time.sleep(1)
+    controller.GripperMoveRelease()
+    time.sleep(5)
+    controller.GripperMove(0.03)
+    time.sleep(5)
+    controller.GripperMoveGrip()
+    time.sleep(1)
+    controller.GripperMoveRelease()
+    time.sleep(5)
+    controller.GripperMove(0.01)
     # time.sleep(1.0)
     # controller.GripperMove(500)
     # time.sleep(1.0)

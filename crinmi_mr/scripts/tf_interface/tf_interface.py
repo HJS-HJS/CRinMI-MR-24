@@ -162,6 +162,7 @@ class TFInterface(object):
 
     
     def matrix(self, target, source):
+        rospy.sleep(0.5)
         _stamp = self.buffer.lookup_transform(target_frame=target, source_frame=source, time=rospy.Time())
         _matrix = tf.quaternion_matrix([
             _stamp.transform.rotation.x,

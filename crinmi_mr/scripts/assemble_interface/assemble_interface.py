@@ -13,13 +13,10 @@ class AssembleInterface():
             icp = ICP(0.001, 0.0000001)
             is_guide = False
         else:
-            icp = ICP(0.001, 0.0005)
+            icp = ICP(0.0001, 0.00005)
             is_guide = True
 
         depth_pcd = icp.get_depth_pcd(pcd, id, is_guide)
-        mesh_pcd, translate= icp.get_mesh_pcd(id, depth_pcd)
-        mesh_pcd = mesh_pcd.translate([0, 0, -0.02])
-        translate[0:3,3] += [0, 0, -0.02]
 
         pose, mesh_pcd, matrix, guide_idx = icp.run_icp(depth_pcd, id, is_guide)
         # icp.vis_pcd(depth_pcd, mesh_pcd)

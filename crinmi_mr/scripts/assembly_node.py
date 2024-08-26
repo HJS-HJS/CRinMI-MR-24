@@ -30,8 +30,9 @@ class Test(object):
     def __init__(self):
 
         # get parameter
-        config_file = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config'))
-        save_dir    = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'image'))
+        config_file         = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config'))
+        save_dir            = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'image'))
+        self.guide_save_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config','guide_pose'))
         self.workspace_config     = rospy.get_param("~robot")
         self.ip_config            = rospy.get_param("~robot_ip")[str(self.workspace_config)]
         self.pose_config          = rospy.get_param("~robot_pose")
@@ -39,8 +40,12 @@ class Test(object):
         self.grip_tf_config       = rospy.get_param("~match_grip")
 
         self.gripper_offset = 0.02
+        self.reset_guide = False
+        # self.reset_guide = True
         self.simulation = True
-        self.scene = {"guide" : "guide_0027", "assemble": "assemble_0033"}
+        # self.scene = {"guide" : "guide_0027", "assemble": "assemble_0021"}
+        # self.scene = {"guide" : "guide_0025", "assemble": "assemble_0026"}
+        self.scene = {"guide" : "guide_0025", "assemble": "depth_0071"}
 
         # ========= RB10 interface test =========
         if not self.simulation: 
@@ -112,8 +117,8 @@ class Test(object):
         if scene is None:
             robot_state = self.robot_server.RecvRobotState()
         else:
-            # robot_state = self.camera.temp_read_state(scene)
-            robot_state = np.array(self.pose_config[str(self.workspace_config)]['guide_capture_pose'])
+            robot_state = self.camera.temp_read_state(scene)
+            # robot_state = np.array(self.pose_config[str(self.workspace_config)]['guide_capture_pose'])
             # robot_state = np.array(self.pose_config[str(self.workspace_config)]['assemble_capture_pose'])
             self.camera.read_image(scene)
             
@@ -144,36 +149,52 @@ class Test(object):
         # initiate assembly pose
         self.guide = {}
 
-        # Move to guide top view and set tf
-        if not self.simulation:
-            self.robot_server.SetVelocity(30)
-            self.move_to_pose(self.guide_top_view)
-            self.set_tf()
-        else:
-            self.set_tf(self.scene["guide"])
+        if self.reset_guide:
+            # Move to guide top view and set tf
+            if not self.simulation:
+                self.robot_server.SetVelocity(30)
+                self.move_to_pose(self.guide_top_view)
+                self.set_tf()
+            else:
+                self.set_tf(self.scene["guide"])
 
+            # Get poses of guide objects
+            print("Get poses of guide objects")
+            if not self.simulation:
+                seg = self.get_segment()
+            else:
+                seg = self.get_segment(self.scene['guide'])
 
-        # Get poses of guide objects
-        print("Get poses of guide objects")
-        if not self.simulation:
-            seg = self.get_segment()
-        else:
-            seg = self.get_segment(self.scene['guide'])
+            self.vis.pub_mesh()
+            for obj in seg:
+                obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
+                obj_depth = obj_seg * self.camera.depth_img
+                obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+                # self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
+                self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],2)])
+                pose, test_pcd, guied_idx = self.assemble.get_pose(obj_pcd, obj[-1])
+                self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
+                print("asset_" + str(obj[-1]))
+                self.vis.pub_test_pcd(test_pcd)
+                self.vis.pub_mesh()
 
-        for obj in seg:
-            obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
-            obj_depth = obj_seg * self.camera.depth_img
-            obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
-            self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
-            pose, test_pcd, guied_idx = self.assemble.get_pose(obj_pcd, obj[-1])
-            self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
-            print("asset_" + str(obj[-1]))
-            self.vis.pub_test_pcd(test_pcd)
+                if pose is not None and obj[-1] not in self.guide:
+                    self.guide[obj[-1]] = pose.tolist()
+
             self.vis.pub_mesh()
 
+            # save guide poses as yaml
+            with open(self.guide_save_dir + '/guide_pose.yaml', 'w') as file:
+                yaml.dump(self.guide, file)
 
-            if pose is not None and obj[-1] not in self.guide:
-                self.guide[obj[-1]] = pose
+        else:
+            with open(self.guide_save_dir + '/guide_pose.yaml', 'r') as file:
+                data = yaml.safe_load(file)
+            self.guide = data
+            for idx in self.guide:
+                self.tf_interface.add_stamp("base_link", "asset_" + str(idx), np.array(self.guide[idx]), m = True, deg = False)
+            self.vis.pub_mesh()
+
         if len(self.guide) == 11:
             print("GUIDE POSE ESTIMATED")
             return True
@@ -230,7 +251,6 @@ class Test(object):
         pose, pcd, guied_idx = self.assemble.get_pose(obj_pcd, obj[-1])
         self.tf_interface.del_stamp('asset_' + str(obj[-1]))
         self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
-        print("asset_" + str(obj[-1]))
         self.vis.pub_test_pcd(pcd)
         self.vis.pub_mesh()
         
@@ -484,23 +504,6 @@ class Test(object):
             # # self.gripper_server.GripperMoveGrip()
             # self.move_to_pose(self.pre_grasp_pose)
             self.set_tf()
-
-    def matching_guide(self, idx):
-        """
-        Temporary matching algorithm
-        0 -> 
-        1 ->
-        2 ->
-        3 ->
-        4 ->
-        5 ->
-        """
-        matching_dict = {}
-
-        if matching_dict[idx] in self.guide:
-            return matching_dict[idx]
-        else:
-            return None
     
     def place(self, assemble_idx, guide_idx, grasp_matrix):
         base2guide = self.tf_interface.matrix('base_link', 'asset_' + str(guide_idx))
@@ -533,8 +536,7 @@ class Test(object):
 
         self.tf_interface.add_stamp('base_link', 'place', base2place[arg], m = True, deg = False)
         self.vis.pub_mesh()
-        self.tf_interface.broadcast_once()
-        rospy.sleep(1)
+        rospy.sleep(0.5)
 
         # pick = grasp_matrix
         return base2place[arg]
@@ -646,7 +648,7 @@ class Test(object):
         offset, _temp = self.calibration.calculate_offset(pose[:3,3], assemble = is_assemble)
         pose[:2,3] += offset[:2]
         self.robot_server.RobotMoveL(pose)
-        rospy.sleep(2)
+        rospy.sleep(1)
         while not self.robot_server.wait:
             print("wait")
             rospy.sleep(1)

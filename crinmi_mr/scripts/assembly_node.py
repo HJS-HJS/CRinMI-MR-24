@@ -217,17 +217,6 @@ class Test(object):
 
         # idx = np.argsort(np.array(distance))[order:]
         
-        # while True:
-        #     user_input = input('Enter idx\n****** Must Be INT *******\n')
-        #     if user_input == 'q':
-        #         return
-        #     else:
-        #         try:
-        #             idx = int(user_input)
-        #             break
-        #         except:
-        #             pass
-        
         should_break = False
         priority = [0,2,5,4,1,3]
         for p in priority:
@@ -240,7 +229,16 @@ class Test(object):
             if should_break is True:
                 break
 
-            
+        while True:
+            user_input = input('Enter idx\n****** Must Be INT *******\n')
+            if user_input == 'q':
+                return
+            else:
+                try:
+                    idx = int(user_input)
+                    break
+                except:
+                    pass
 
         obj = copy.deepcopy(seg[idx])
         obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
@@ -531,6 +529,14 @@ class Test(object):
         base2place = np.dot(base2assemble2, assemble2grasp)
         print("place candidate: ", base2place.shape)
         print("place candidate: ", base2place)
+
+        bizzare = []
+        for i, H in enumerate(base2place):
+            if rotation_matrix_error(grasp_matrix, H) > 1:
+                bizzare.append(i)
+
+        base2place = np.delete(base2place, bizzare, axis=0)
+        print("delete bizzare place candidate: ", base2place)
 
         arg = np.argmax(base2place[:,2,3])
 

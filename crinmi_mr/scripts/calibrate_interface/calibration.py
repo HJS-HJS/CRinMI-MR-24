@@ -1,12 +1,16 @@
+import os
 import copy
 import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 
+import rospkg
+
 # Set up workspace (adding z variation)
 class CalibrationInterface(object):
     def __init__(self):
-        config = self.load_yaml('/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/config/workspace.yaml')
+        mesh_dir    = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'config'))
+        config = self.load_yaml(mesh_dir + '/workspace.yaml')
         self.assemble_workspace = config["assemble"]["workspace"]
         self.assemble_offsets = config["assemble"]["offsets"]
         self.guide_workspace = config["guide"]["workspace"]

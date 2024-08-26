@@ -171,7 +171,7 @@ class CameraInterface(object):
         
     def read_image(self, name, vis:bool = False):
         save_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'image'))
-        with open(save_dir + '/depth_' + name + '.p', 'rb') as f:
+        with open(save_dir + '/' + name + '.p', 'rb') as f:
             topic_list = pickle.load(f)
             self.color_img_msg = topic_list[0]
             self.depth_img_msg = topic_list[1]
@@ -181,7 +181,7 @@ class CameraInterface(object):
     
     def temp_read_state(self, name, vis:bool = False):
         save_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'image'))
-        with open(save_dir + '/depth_' + name + '.p', 'rb') as f:
+        with open(save_dir + '/' + name + '.p', 'rb') as f:
             topic_list = pickle.load(f)
             return topic_list[4]
     

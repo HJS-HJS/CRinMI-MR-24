@@ -21,10 +21,10 @@ class AssembleInterface():
         mesh_pcd = mesh_pcd.translate([0, 0, -0.02])
         translate[0:3,3] += [0, 0, -0.02]
 
-        pose, mesh_pcd, matrix = icp.run_icp(depth_pcd, id, is_guide)
+        pose, mesh_pcd, matrix, guide_idx = icp.run_icp(depth_pcd, id, is_guide)
         # icp.vis_pcd(depth_pcd, mesh_pcd)
         # icp.vis_pcd(depth_pcd, mesh_pcd, pose)
 
         mesh_pcd.transform(pose)
 
-        return pose @ matrix, mesh_pcd.points
+        return pose @ matrix, mesh_pcd.points, guide_idx

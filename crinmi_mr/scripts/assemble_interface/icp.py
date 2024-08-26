@@ -120,6 +120,7 @@ class ICP():
             min_pose   = np.eye(4)
             min_matrix = np.eye(4)
             min_mesh_pcd = None
+            guide_idx = id
             if CLASS[id]['rotate'] > 10:
                 angle_num = CLASS[id]['rotate'] % 10
                 for i in range(angle_num + 1):
@@ -145,7 +146,7 @@ class ICP():
                         min_matrix = matrix
                         min_pose = pose
                         min_mesh_pcd = copy.deepcopy(mesh_pcd)
-            return min_pose, min_mesh_pcd, min_matrix
+            return min_pose, min_mesh_pcd, min_matrix, guide_idx
                     
         else:
             print("Assmeble")
@@ -153,36 +154,25 @@ class ICP():
             min_pose = np.eye(4)
             min_matrix = np.eye(4)
             min_mesh_pcd = None
-            for i in range(CLASS[id]['rotate']):
-                print('case ', i)
-                angle = [0, 0, eigen_angle + np.pi * 2 / CLASS[id]['rotate'] * (i)]
-                mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
-                mesh = copy.deepcopy(mesh_pcd)
-                pose, cost = self.icp(mesh, depth_pcd)
-                if cost < min_cost:
-                    min_cost = cost
-                    min_matrix = matrix
-                    min_pose = pose
-                    min_mesh_pcd = copy.deepcopy(mesh_pcd)
-            if CLASS[id]['next_form'] is not None:
-                for case in CLASS[id]['next_form']:
-                    if case[1] > 10:
-                        angle_set = np.pi / 2 / ((case[1] - 1) % 10)
-                    else: 
-                        angle_set = np.pi * 2 / case[1]
-                    for i in range(case[1]%10):
-                        print('case ', i)
-                        angle = np.array(case[0]) + [0, 0, eigen_angle + angle_set * (i)]
-                        mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
-                        mesh = copy.deepcopy(mesh_pcd)
-                        pose, cost = self.icp(mesh, depth_pcd)
-                        if cost < min_cost:
-                            min_cost = cost
-                            min_matrix = matrix
-                            min_pose = pose
-                            min_mesh_pcd = copy.deepcopy(mesh_pcd)
-
-            return min_pose, min_mesh_pcd, min_matrix
+            guide_idx = -1
+            for idx, case in enumerate(CLASS[id]['rotate']):
+                print('case #', idx + 1)
+                if case[1] > 10:
+                    angle_set = np.pi / 2 / ((case[1] - 1) % 10)
+                else: 
+                    angle_set = np.pi * 2 / case[1]
+                for i in range(case[1] % 10):
+                    angle = np.array(case[0]) + [0, 0, eigen_angle + angle_set * (i)]
+                    mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
+                    mesh = copy.deepcopy(mesh_pcd)
+                    pose, cost = self.icp(mesh, depth_pcd)
+                    if cost < min_cost:
+                        min_cost = cost
+                        min_matrix = matrix
+                        min_pose = pose
+                        min_mesh_pcd = copy.deepcopy(mesh_pcd)
+                        guide_idx = case[2]
+            return min_pose, min_mesh_pcd, min_matrix, guide_idx
 
     def icp(self, source, target):
         target_points = np.asarray(target.points)

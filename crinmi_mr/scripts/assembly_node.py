@@ -38,8 +38,8 @@ class Test(object):
         self.grip_tf_config       = rospy.get_param("~match_grip")
 
         self.gripper_offset = 0.02
-        self.simulation = False
-        self.scene = {"guide" : "0061", "assemble": "0064"}
+        self.simulation = True
+        self.scene = {"guide" : "guide_0018", "assemble": "assemble_0021"}
 
         # ========= RB10 interface test =========
         if not self.simulation: 
@@ -111,14 +111,17 @@ class Test(object):
         if scene is None:
             robot_state = self.robot_server.RecvRobotState()
         else:
-            robot_state = self.camera.temp_read_state(scene)
+            # robot_state = self.camera.temp_read_state(scene)
+            robot_state = np.array(self.pose_config[str(self.workspace_config)]['guide_capture_pose'])
+            # robot_state = np.array(self.pose_config[str(self.workspace_config)]['assemble_capture_pose'])
             self.camera.read_image(scene)
             
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
-        rospy.sleep(1)
+        # rospy.sleep(1)
         pcd = self.camera.pcd()
         self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],10)])
         self.vis.pub_mesh()
+        # self.tf_interface.broadcast_once()
 
     def get_segment(self, data:str = None):
         """
@@ -161,7 +164,7 @@ class Test(object):
             obj_depth = obj_seg * self.camera.depth_img
             obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
             self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
-            pose, test_pcd = self.assemble.get_pose(obj_pcd, obj[-1])
+            pose, test_pcd, guied_idx = self.assemble.get_pose(obj_pcd, obj[-1])
             self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
             print("asset_" + str(obj[-1]))
             self.vis.pub_test_pcd(test_pcd)
@@ -221,14 +224,14 @@ class Test(object):
         seg_instance = obj
         obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
         self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
-        pose, pcd = self.assemble.get_pose(obj_pcd, obj[-1])
+        pose, pcd, guied_idx = self.assemble.get_pose(obj_pcd, obj[-1])
         self.tf_interface.del_stamp('asset_' + str(obj[-1]))
         self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
         print("asset_" + str(obj[-1]))
         self.vis.pub_test_pcd(pcd)
         self.vis.pub_mesh()
 
-        return obj
+        return obj, guied_idx
     
     def get_grasp_pose(self, obj):
         print("get_grasp_pose")
@@ -503,14 +506,14 @@ class Test(object):
         plt.show()
 
     def move_to_home(self):
-        rospy.sleep(2)
-        rospy.loginfo('Move to Home pose using MoveJ')
-        self.robot_server.RobotMoveJ(self.pose_config[str(self.workspace_config)]["home_pose"])
-        rospy.sleep(1)
-        while not self.robot_server.wait:
+        if not self.simulation: 
+            # rospy.sleep(1)
+            rospy.loginfo('Move to Home pose using MoveJ')
+            self.robot_server.RobotMoveJ(self.pose_config[str(self.workspace_config)]["home_pose"])
             rospy.sleep(1)
-        
-        self.set_tf()
+            while not self.robot_server.wait:
+                rospy.sleep(1)
+            self.set_tf()
 
     def move_to_pose(self, pose, is_assemble:bool = True):
         rospy.sleep(1)
@@ -528,17 +531,13 @@ class Test(object):
         self.get_guide_poses()
 
         # Get target pose
-        obj = self.get_target()
+        obj, guide_idx = self.get_target()
         
         # Get grasp pose
         point, angle = self.get_grasp_pose(obj)
 
         # Grasp
         self.grasp()
-        
-        # Get pose of target matched guide
-        guide_idx = None
-        self.guide_pose = self.guide[guide_idx]
         
         # Place
         self.place(guide_idx)
@@ -550,16 +549,16 @@ class Test(object):
 
         # Get guide poses
         self.get_guide_poses()
-        print("\trecord: ", 
-            self.data_save.save_data(
-            "guide",
-            self.camera.color_img_msg, 
-            self.camera.depth_img_msg,
-            self.camera.color_cam_info_msg,
-            self.camera.depth_cam_info_msg,
-            self.robot_state
-            )
-        )
+        # print("\trecord: ", 
+        #     self.data_save.save_data(
+        #     "guide",
+        #     self.camera.color_img_msg, 
+        #     self.camera.depth_img_msg,
+        #     self.camera.color_cam_info_msg,
+        #     self.camera.depth_cam_info_msg,
+        #     self.robot_state
+        #     )
+        # )
         
         while True:
             user_input = input('enter enter\n')
@@ -567,23 +566,21 @@ class Test(object):
                 return
             elif user_input == '':
                 # Get target pose
-                obj = self.get_target()
+                obj, guide_idx = self.get_target()
                 
                 # Get grasp pose
                 grasp_matrix, grasp_width = self.get_grasp_pose(obj)
 
-                print("\trecord: ", 
-                    self.data_save.save_data(
-                    "assemble",
-                    self.camera.color_img_msg, 
-                    self.camera.depth_img_msg,
-                    self.camera.color_cam_info_msg,
-                    self.camera.depth_cam_info_msg,
-                    self.robot_state
-                    )
-                )
-                guide_idx = self.select_guide()
-
+                # print("\trecord: ", 
+                #     self.data_save.save_data(
+                #     "assemble",
+                #     self.camera.color_img_msg, 
+                #     self.camera.depth_img_msg,
+                #     self.camera.color_cam_info_msg,
+                #     self.camera.depth_cam_info_msg,
+                #     self.robot_state
+                #     )
+                # )
                 self.gripper_server.GripperMove(grasp_width + self.gripper_offset)
 
                 pick = (grasp_matrix).copy()

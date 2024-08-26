@@ -34,6 +34,9 @@ class Test(object):
         self.pose_config          = rospy.get_param("~robot_pose")
         
         # ========= RB10 interface test =========
+        self.robot_server = RobotControlServer(self.ip_config["robot"])
+        # ========= RB10 interface test =========
+        self.gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
         # ========= camera interface test =========
         camera = CameraInterface()
         rospy.loginfo('Camera Interface Ready')
@@ -44,50 +47,80 @@ class Test(object):
         self.calibration = CalibrationInterface()
         rospy.loginfo('Calibration Interface Ready')
 
-        # Generate TF msg
-        # robot state for test
+    
+    def grip(self):
+        self.gripper_server.GripperMoveRelease()
         rospy.sleep(1)
-        # read_num = "0061"
-        # read_num = "0062"
-        read_num = "depth_0063"
-        robot_state = camera.temp_read_state(read_num)
-        # robot_state = np.array(
-        #     [
-        #         [ 0.54718528,  0.05478036,  0.83521697,  0.20298141],
-        #         [ 0.8358647 ,  0.01645447, -0.54868885, -0.65046209],
-        #         [-0.04380043,  0.99836284, -0.03678533,  0.75620735],
-        #         [ 0.        ,  0.        ,  0.        ,  1.        ],
-        #         ]
-        #     )
-        # robot_state = robot_server.RecvRobotState()
+        self.gripper_server.GripperMove()
+        rospy.sleep(1)
+
+    def cali(self, assemble:str):
+        if assemble == 'a':
+            pose = np.array(self.pose_config[str(self.workspace_config)]['assemble_capture_pose'])
+            is_assemble = True
+        elif assemble == 'g':
+            pose = np.array(self.pose_config[str(self.workspace_config)]['guide_capture_pose'])
+            is_assemble = False
+    
+        self.robot_server.RobotMoveL(pose)
+        rospy.sleep(1)
+        while not self.robot_server.wait:
+            print("wait")
+            rospy.sleep(1)
+
+        robot_state = self.robot_server.RecvRobotState()
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
         
+        rospy.sleep(1)
         base2cam = self.tf_interface.matrix("base_link", "camera_calibration")
 
-        # Assemble/Guide
-        assemble = True
-
         # Update workspace
-        self.calibration.update_yaml_workspace(base2cam, "/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/calibrate_interface/capture_pose.npz", assemble)
+        self.calibration.update_yaml_workspace(base2cam, "/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/scripts/calibrate_interface/capture_pose.npz", is_assemble)
 
         # Update offsets
-        self.calibration.update_yaml_offsets("/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/config/workspace.yaml", assemble)
+        self.calibration.update_yaml_offsets("/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/config/workspace.yaml", is_assemble)
         
         rospy.sleep(1)
-    
+
+    def test(self, assemble:str):
+        if assemble == 'a':
+            is_assemble = True
+        elif assemble == 'g':
+            is_assemble = False
+
+        translate_set = [
+            [0, 0 ,0],
+            ]
+
+        for translate in translate_set:
+            offset, translate = self.calibration.calculate_offset(translate, assemble = is_assemble)
+            pose = pose2matrix([translate[0], translate[1], translate[2] + 0.246, 90, 0, 44 + pose])
+            pose[2,3] += 0.02
+
+            self.robot_server.RobotMoveL(pose)
+            rospy.sleep(1)
+            while not self.robot_server.wait:
+                print("wait")
+                rospy.sleep(1)
+            rospy.sleep(5)
+
+
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')
     server = Test()
-    rospy.spin()
-    # rate = rospy.Rate(10)  # 20hz
-    # while not rospy.is_shutdown():
-    #     server.SpinOnce()
-    #     rate.sleep()
+    rate = rospy.Rate(10)
 
-    try:
-        pass
-    except KeyboardInterrupt:
-        robot_server.Disconnect()
-        gripper_server.Disconnect()
-        rospy.loginfo("Disconnect robot & gripper server")
-
+    while not rospy.is_shutdown():
+        user_input = input('g: grip\nca: cali assemble\ncg: cali guide\nta:test assemble\ntg:test guide')
+        if user_input == 'q':
+            break
+        elif user_input == 'g':
+            server.grip()
+        elif user_input == 'ca':
+            server.cali('g')
+        elif user_input == 'cg':
+            server.cali('a')
+        elif user_input == 'ta':
+            server.test('a')
+        elif user_input == 'tg':
+            server.test('g')

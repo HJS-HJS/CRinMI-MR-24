@@ -51,7 +51,7 @@ class CalibrationInterface(object):
         z_frac = (z - workspace['l_b'][2]) / (workspace['l_t'][2] - workspace['l_b'][2])
         offset_xyz = self.interpolate_tuple(offset_xy, offset_xy, z_frac)
 
-        correct_xyz = np.array([x + offset_xyz[0], y + offset_xyz[1], z + offset_xyz[2]])
+        correct_xyz = np.array([x + offset_xyz[0], y + offset_xyz[1], z])
 
         return offset_xyz, correct_xyz
     
@@ -211,48 +211,49 @@ class CalibrationInterface(object):
             print(f"    {key}: [{', '.join(f'{v:.8f}' for v in value)}]")
 
 
-cal = CalibrationInterface()
+if __name__ == '__main__':
+    cal = CalibrationInterface()
 
-x = np.linspace(0.18, 0.4, 100)
-y = np.linspace(-0.86, -0.5, 100)
-X, Y = np.meshgrid(x, y)
+    x = np.linspace(0.18, 0.4, 100)
+    y = np.linspace(-0.86, -0.5, 100)
+    X, Y = np.meshgrid(x, y)
 
-# Calculate offsets
-Z_offset = np.zeros_like(X)
+    # Calculate offsets
+    Z_offset = np.zeros_like(X)
 
-# 각 점에서의 오프셋 계산
-Z_offset = np.zeros((100, 100, 3))
-for i in range(100):
-    for j in range(100):
-        Z_offset[i, j] = cal.calculate_offset((X[i, j], Y[i, j], 0), assemble=True)[0]
+    # 각 점에서의 오프셋 계산
+    Z_offset = np.zeros((100, 100, 3))
+    for i in range(100):
+        for j in range(100):
+            Z_offset[i, j] = cal.calculate_offset((X[i, j], Y[i, j], 0), assemble=True)[0]
 
-# 오프셋 각 성분 추출
-Z_offset_x = Z_offset[:, :, 0]
-Z_offset_y = Z_offset[:, :, 1]
-Z_offset_z = Z_offset[:, :, 2]
+    # 오프셋 각 성분 추출
+    Z_offset_x = Z_offset[:, :, 0]
+    Z_offset_y = Z_offset[:, :, 1]
+    Z_offset_z = Z_offset[:, :, 2]
 
-# 결과를 2D로 플롯
-fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-# X 오프셋 플롯
-im1 = axes[0].imshow(Z_offset_x, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
-axes[0].set_title('X Offset')
-axes[0].set_xlabel('X')
-axes[0].set_ylabel('Y')
-fig.colorbar(im1, ax=axes[0], orientation='vertical')
+    # 결과를 2D로 플롯
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    # X 오프셋 플롯
+    im1 = axes[0].imshow(Z_offset_x, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
+    axes[0].set_title('X Offset')
+    axes[0].set_xlabel('X')
+    axes[0].set_ylabel('Y')
+    fig.colorbar(im1, ax=axes[0], orientation='vertical')
 
-# Y 오프셋 플롯
-im2 = axes[1].imshow(Z_offset_y, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
-axes[1].set_title('Y Offset')
-axes[1].set_xlabel('X')
-axes[1].set_ylabel('Y')
-fig.colorbar(im2, ax=axes[1], orientation='vertical')
+    # Y 오프셋 플롯
+    im2 = axes[1].imshow(Z_offset_y, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
+    axes[1].set_title('Y Offset')
+    axes[1].set_xlabel('X')
+    axes[1].set_ylabel('Y')
+    fig.colorbar(im2, ax=axes[1], orientation='vertical')
 
-# Z 오프셋 플롯
-im3 = axes[2].imshow(Z_offset_z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
-axes[2].set_title('Z Offset')
-axes[2].set_xlabel('X')
-axes[2].set_ylabel('Y')
-fig.colorbar(im3, ax=axes[2], orientation='vertical')
+    # Z 오프셋 플롯
+    im3 = axes[2].imshow(Z_offset_z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
+    axes[2].set_title('Z Offset')
+    axes[2].set_xlabel('X')
+    axes[2].set_ylabel('Y')
+    fig.colorbar(im3, ax=axes[2], orientation='vertical')
 
-plt.tight_layout()
-plt.show()
+    plt.tight_layout()
+    plt.show()

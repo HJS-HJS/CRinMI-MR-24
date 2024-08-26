@@ -7,14 +7,15 @@ CLASS = {
                                                                                                                         ]},
     1:  {'name': 'a_bearing_holder'     , 'type': '.stl', "voxel_size" : 0.0007,  'number_of_points': 20000  , 'rotate':[
                                                                                                                         [[0, 0, 0],     1, 7], 
-                                                                                                                        [[pi/2, 0, 0],  1, 8]           
+                                                                                                                        [[pi/2, 0, 0],  1, 8]
                                                                                                                         ]},
-    2:  {'name': 'a_cam_zig'            , 'type': '.stl', "voxel_size" : 0.0010,  'number_of_points': 20000  , 'rotate':[
+    # 2:  {'name': 'a_cam_zig'            , 'type': '.stl', "voxel_size" : 0.0015,  'number_of_points': 20000  , 'rotate':[
+    2:  {'name': 'a_cam_zig'            , 'type': '.stl', "voxel_size" : 0.0020,  'number_of_points': 20000  , 'rotate':[
                                                                                                                         [[0, 0, 0],      2, 9], 
                                                                                                                         [[-pi/2, 0, 0],  2, 10], 
                                                                                                                         # [[pi*4/6, 0, 0], 2, -1] 
                                                                                                                         ]},
-    3:  {'name': 'a_hex_wrench'         , 'type': '.obj', "voxel_size" : 0.0010, 'number_of_points': 20000  , 'rotate':[
+    3:  {'name': 'a_hex_wrench'         , 'type': '.obj', "voxel_size" : 0.0008, 'number_of_points': 20000  , 'rotate':[
                                                                                                                         [[0, 0, pi/2],  1, 12],
                                                                                                                         [[pi, 0, -pi/2], 1, 11]
                                                                                                                         ]},

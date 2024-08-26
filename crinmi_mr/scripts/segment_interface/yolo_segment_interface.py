@@ -17,14 +17,15 @@ class SegmentInterface():
         print("Segmentation model ready..")
 
 
-    def run(self, img):
+    def run(self, img, vis:bool = True):
         results = self.model.predict(img, conf=0.6)
         self.result = results[0]
         self.seg_classes = list(self.result.names.values())
         print("\n", "Available class List", "\n", self.seg_classes)
 
-        im = Image.fromarray(self.result.plot()[..., ::-1])
-        im.show()
+        if vis:
+            im = Image.fromarray(self.result.plot()[..., ::-1])
+            im.show()
 
     def img2SegmentMask(self):
         masks_ws_labels = []

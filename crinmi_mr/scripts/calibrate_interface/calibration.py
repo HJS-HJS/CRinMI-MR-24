@@ -54,48 +54,205 @@ class CalibrationInterface(object):
         correct_xyz = np.array([x + offset_xyz[0], y + offset_xyz[1], z + offset_xyz[2]])
 
         return offset_xyz, correct_xyz
+    
+    def calculate_point_interpolation(self, point, assemble = True):
+        """ Calculate interpolation for an arbitrary point (x, y) within the 3x3 grid """
+        
+        if assemble:
+            workspace = copy.deepcopy(self.assemble_workspace)
+            offsets   = copy.deepcopy(self.assemble_offsets)
+        else:
+            workspace = copy.deepcopy(self.guide_workspace)
+            offsets   = copy.deepcopy(self.guide_offsets)
+        
+        x, y = point
 
-# # Example code
-# cal = CalibrationInterface()
+        # Determine the interpolation along y-axis
+        if y > workspace['m_m'][1]:
+            # For y < y_m, we use the top and bottom values
+            if x > workspace['m_m'][0]:
+                print("left bottom")
+                # left bottom
+                y_frac = (y - workspace['m_m'][1]) / (workspace['l_b'][1] - workspace['m_m'][1])
+                offset_y_l = self.interpolate_tuple(offsets['m_m'], offsets['m_b'], y_frac)
+                offset_y_r = self.interpolate_tuple(offsets['l_m'], offsets['l_b'], y_frac)
+            else:
+                # right bottom
+                print("right bottom")
+                y_frac = (y - workspace['m_m'][1]) / (workspace['r_b'][1] - workspace['m_m'][1])
+                offset_y_l = self.interpolate_tuple(offsets['m_m'], offsets['m_b'], y_frac)
+                offset_y_r = self.interpolate_tuple(offsets['r_m'], offsets['r_b'], y_frac)
+        else:
+            # For y >= y_m, we use the top and bottom values
+            if x > workspace['m_m'][0]:
+                # left top
+                print("left top")
+                y_frac = (y - workspace['l_t'][1]) / (workspace['m_m'][1] - workspace['l_t'][1])
+                offset_y_l = self.interpolate_tuple(offsets['m_t'], offsets['m_m'], y_frac)
+                offset_y_r = self.interpolate_tuple(offsets['l_t'], offsets['l_m'], y_frac)
+            else:
+                # right top
+                print("right top")
+                print(y)
+                y_frac = (y - workspace['r_t'][1]) / (workspace['m_m'][1] - workspace['r_t'][1])
+                print(y_frac)
+                offset_y_l = self.interpolate_tuple(offsets['r_m'], offsets['r_t'], y_frac)
+                offset_y_r = self.interpolate_tuple(offsets['m_m'], offsets['m_t'], y_frac)
+        
 
-# points = [
-#     [0.31241449, -0.70576825, 0.00206379, 1.0], #36
-#     [3.62813190e-01, -8.53884383e-01, 2.37018143e-04, 1.0], #37
-#     [0.21649703, -0.76158226, 0.00398036, 1.0], #30
-#     [0.30494156, -0.57011973, 0.01109796, 1.0], #21
-#     [0.2144644, -0.62775603, 0.00193548, 1.0] #4
-# ]
+        # Determine interpolation along x-axis
+        x_frac = (x - workspace['r_t'][0]) / (workspace['l_t'][0] - workspace['r_t'][0])
+        offset_xy = self.interpolate_tuple(offset_y_l, offset_y_r, x_frac)
+        
+        return offset_xy
+    
+    def update_yaml_workspace(self, base2cam, data_path, assemble = True):
+    
+        data = np.load(data_path)
 
-# for point in points:
-#     x, y, z = point[:3]  # 앞의 x, y, z 값만 추출
-#     offset = cal.calculate_offset(x, y, z)  # 함수에 x, y, z 값을 넣음
-#     print(offset[1])
+        # 마커 좌표들을 읽어서 [x, y, z, 1] 형식의 nx4 matrix로 변환
+        marker_names = [key for key in data.keys() if 'marker' in key]
+        marker_positions = []
 
-# for i in range(X.shape[0]):
-#     for j in range(X.shape[1]):
-#         offset = cal.calculate_offset(X[i, j], Y[i, j], Z[i, j])
-#         # offset = cal.calculate_offset(X[i, j], Y[i, j], Z[i])
-#         Zx[i, j] = offset[0]
-#         Zy[i, j] = offset[1]
-#         Zz[i, j] = offset[2]
+        for marker in marker_names:
+            xyz = data[marker][:3]  # x, y, z 값만 추출
+            xyz1 = np.append(xyz, 1)  # [x, y, z, 1] 형태로 변환
+            marker_positions.append(xyz1)
 
-# # Plot the results
-# fig, axs = plt.subplots(1, 3, figsize=(18, 6))
+        # nx4 matrix로 변환
+        marker_positions = np.array(marker_positions)
 
-# # Plot X offsets
-# c1 = axs[0].contourf(X, Y, Zx, cmap='viridis')
-# axs[0].set_title('Offset X')
-# fig.colorbar(c1, ax=axs[0])
+        # Base 좌표계의 마커 좌표 계산 (nx4 matrix)
+        marker_positions_in_base = (base2cam @ marker_positions.T).T
 
-# # Plot Y offsets
-# c2 = axs[1].contourf(X, Y, Zy, cmap='plasma')
-# axs[1].set_title('Offset Y')
-# fig.colorbar(c2, ax=axs[1])
+        base2marker = {}
+        # Base 좌표계의 마커 좌표 출력
+        for i, marker in enumerate(marker_names):
+            print(marker)
+            print(marker_positions_in_base[i])
+            base2marker[marker] = marker_positions_in_base[i]
 
-# # Plot Z offsets
-# c3 = axs[2].contourf(X, Y, Zz, cmap='inferno')
-# axs[2].set_title('Offset Z')
-# fig.colorbar(c3, ax=axs[2])
+        if len(data) == 6:
+            marker_id_mapping = {
+                'l_t': "marker_40_pose",  # left top
+                'l_m': "marker_30_pose",  # left middle
+                'l_b': "marker_29_pose",  # left bottom
+                'r_t': "marker_21_pose",  # right top
+                'r_m': "marker_6_pose",  # right middle
+                'r_b': "marker_4_pose"   # right bottom
+            }
+            marker_positions = {
+                'l_t': base2marker[marker_id_mapping['l_t']][:3],
+                'l_m': base2marker[marker_id_mapping['l_m']][:3],
+                'l_b': base2marker[marker_id_mapping['l_b']][:3],
+                'r_t': base2marker[marker_id_mapping['r_t']][:3],
+                'r_m': base2marker[marker_id_mapping['r_m']][:3],
+                'r_b': base2marker[marker_id_mapping['r_b']][:3]
+            }
+        elif len(data) == 9:
+            marker_id_mapping = {
+                'l_t': "marker_40_pose",  # left top
+                'l_m': "marker_30_pose",  # left middle
+                'l_b': "marker_29_pose",  # left bottom
+                'm_t': "marker_21_pose",  # middle top
+                'm_m': "marker_6_pose",  # middle middle
+                'm_b': "marker_4_pose",  # middle bottom
+                'r_t': "marker_5_pose",  # right top
+                'r_m': "marker_18_pose",  # right middle
+                'r_b': "marker_20_pose"   # right bottom
+            }
+            marker_positions = {
+                'l_t': base2marker[marker_id_mapping['l_t']][:3],
+                'l_m': base2marker[marker_id_mapping['l_m']][:3],
+                'l_b': base2marker[marker_id_mapping['l_b']][:3],
+                'm_t': base2marker[marker_id_mapping['m_t']][:3],
+                'm_m': base2marker[marker_id_mapping['m_m']][:3],
+                'm_b': base2marker[marker_id_mapping['m_b']][:3],
+                'r_t': base2marker[marker_id_mapping['r_t']][:3],
+                'r_m': base2marker[marker_id_mapping['r_m']][:3],
+                'r_b': base2marker[marker_id_mapping['r_b']][:3]
+            }
+        else:
+            print("ERROR")
+            return
 
-# plt.tight_layout()
-# plt.show()
+        print("WORKSPACE")
+        if assemble:
+            print("assemble:")
+        else:
+            print("guide:")
+        print("  workspace:")
+        for key, value in marker_positions.items():
+            print(f"    {key}: [{', '.join(f'{v:.8f}' for v in value)}]")
+        print("\n")
+
+    def update_yaml_offsets(self, file_path, assemble = True):
+        # YAML 파일 읽기
+        with open(file_path, 'r') as file:
+            yaml_data = yaml.safe_load(file)
+
+        # workspace와 measure 데이터 추출
+        if assemble:        
+            workspace = yaml_data['assemble']['workspace']
+            measure = yaml_data['assemble']['measure']
+        else:
+            workspace = yaml_data['guide']['workspace']
+            measure = yaml_data['guide']['measure']
+
+        # offsets 계산
+        offsets = {key: [measure[key][i] - workspace[key][i] for i in range(3)] for key in workspace}
+
+        # YAML 데이터 업데이트
+        yaml_data['assemble']['offsets'] = offsets
+
+        print("OFFSETS")
+        print("  offsets:")
+        for key, value in offsets.items():
+            print(f"    {key}: [{', '.join(f'{v:.8f}' for v in value)}]")
+
+
+cal = CalibrationInterface()
+
+x = np.linspace(0.18, 0.4, 100)
+y = np.linspace(-0.86, -0.5, 100)
+X, Y = np.meshgrid(x, y)
+
+# Calculate offsets
+Z_offset = np.zeros_like(X)
+
+# 각 점에서의 오프셋 계산
+Z_offset = np.zeros((100, 100, 3))
+for i in range(100):
+    for j in range(100):
+        Z_offset[i, j] = cal.calculate_offset((X[i, j], Y[i, j], 0), assemble=True)[0]
+
+# 오프셋 각 성분 추출
+Z_offset_x = Z_offset[:, :, 0]
+Z_offset_y = Z_offset[:, :, 1]
+Z_offset_z = Z_offset[:, :, 2]
+
+# 결과를 2D로 플롯
+fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+# X 오프셋 플롯
+im1 = axes[0].imshow(Z_offset_x, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
+axes[0].set_title('X Offset')
+axes[0].set_xlabel('X')
+axes[0].set_ylabel('Y')
+fig.colorbar(im1, ax=axes[0], orientation='vertical')
+
+# Y 오프셋 플롯
+im2 = axes[1].imshow(Z_offset_y, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
+axes[1].set_title('Y Offset')
+axes[1].set_xlabel('X')
+axes[1].set_ylabel('Y')
+fig.colorbar(im2, ax=axes[1], orientation='vertical')
+
+# Z 오프셋 플롯
+im3 = axes[2].imshow(Z_offset_z, extent=(X.min(), X.max(), Y.min(), Y.max()), origin='lower', cmap='viridis')
+axes[2].set_title('Z Offset')
+axes[2].set_xlabel('X')
+axes[2].set_ylabel('Y')
+fig.colorbar(im3, ax=axes[2], orientation='vertical')
+
+plt.tight_layout()
+plt.show()

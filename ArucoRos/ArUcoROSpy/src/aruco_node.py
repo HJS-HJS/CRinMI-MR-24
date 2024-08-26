@@ -430,10 +430,10 @@ class ImageConverter(object):
             object_tf.transform.translation = self.obj_transform.position
             object_tf.transform.rotation = self.obj_transform.orientation
             self.tf_brodcaster.sendTransform(object_tf)
-            fname = os.path.join('/home/kkw0418/Desktop', 'rgb+camera_info.pkl')
-            with open(fname, 'wb') as f:
-                pickle.dump(object_tf, f)
-                return
+            # fname = os.path.join('/home/kkw0418/Desktop', 'rgb+camera_info.pkl')
+            # with open(fname, 'wb') as f:
+            #     pickle.dump(object_tf, f)
+            #     return
         elif self.aruco_update_rate <= 0:
             raise ValueError("Aruco update rate should be between 1 and 0")
         else:

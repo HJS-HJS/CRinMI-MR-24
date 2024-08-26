@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import rospy
 import rospkg
+import copy
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(current_dir)
@@ -39,7 +40,7 @@ class Test(object):
 
         self.gripper_offset = 0.02
         self.simulation = True
-        self.scene = {"guide" : "guide_0018", "assemble": "assemble_0021"}
+        self.scene = {"guide" : "guide_0027", "assemble": "assemble_0033"}
 
         # ========= RB10 interface test =========
         if not self.simulation: 
@@ -180,38 +181,20 @@ class Test(object):
             print("GUIDE POSE NOT FOUND")
             return False
     
-    def get_target(self):
+    def get_target(self, seg):
         """
         RUN ICP for target object and generate grasp pose
         """
-
-        # initiate assembly pose
-        self.assembly_pose = None
-
-        # Move to guide top view and set tf
-        if not self.simulation:
-            self.move_to_pose(self.assembly_top_view)
-            rospy.sleep(1.0)
-            self.set_tf()
-        else:
-            self.set_tf(self.scene["assemble"])
-
-        print("Get poses of assemble objects")
-
-        # SEGMENT
-        seg = self.get_segment()
         
-        print("start picking from center object")
-        idx = 0
-        distance = []
-        for seg_info in seg:
-            workspace = seg_info[1]
-            center = np.array([workspace[0] - workspace[2], workspace[1] - workspace[3]])
-            distance.append(np.linalg.norm(center - np.array([640, 360])))
+        # print("start picking from center object")
+        # idx = 0
+        # distance = []
+        # for seg_info in seg:
+        #     workspace = seg_info[1]
+        #     center = np.array([workspace[0] - workspace[2], workspace[1] - workspace[3]])
+        #     distance.append(np.linalg.norm(center - np.array([640, 360])))
 
-        idx = np.argsort(np.array(distance))[order:]
-
-        self.camera.vis_segment(seg)
+        # idx = np.argsort(np.array(distance))[order:]
         
         # while True:
         #     user_input = input('Enter idx\n****** Must Be INT *******\n')
@@ -223,8 +206,22 @@ class Test(object):
         #             break
         #         except:
         #             pass
+        
+        should_break = False
+        priority = [0,2,5,4,1,3]
+        for p in priority:
+            for i, seg_instance in enumerate(seg):
+                if seg_instance[2] == p:
+                    idx = i
+                    should_break = True
+                    print("High height segmentation index", idx)
+                    break
+            if should_break is True:
+                break
 
-        obj = seg[idx]
+            
+
+        obj = copy.deepcopy(seg[idx])
         obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
         obj_depth = obj_seg * self.camera.depth_img
         seg_instance = obj
@@ -236,6 +233,10 @@ class Test(object):
         print("asset_" + str(obj[-1]))
         self.vis.pub_test_pcd(pcd)
         self.vis.pub_mesh()
+        
+        print("before", len(seg))
+        del seg[idx]
+        print("after", len(seg))
 
         return obj, guied_idx
     
@@ -297,7 +298,7 @@ class Test(object):
                 print("Failed")
                 continue
 
-        return None
+        return None, None
     
     def get_grasp_pose_v2(self):
         """
@@ -689,15 +690,38 @@ class Test(object):
             if user_input == 'q':
                 return
             elif user_input == '':
-
-                # Get grasp pose
-                obj, guide_idx, grasp_matrix, grasp_width = self.get_grasp_pose_v2()
                 
-                if grasp_matrix is None:
-                    print("collision occured for all object")
-                    print("NEED TO CHANGE BOX")
-                    return 
+                # initiate assembly pose
+                self.assembly_pose = None
 
+                # Move to guide top view and set tf
+                print("Get poses of assemble objects")
+                if not self.simulation:
+                    self.move_to_pose(self.assembly_top_view)
+                    rospy.sleep(1.0)
+                    self.set_tf()
+                else:
+                    self.set_tf(self.scene["assemble"])
+
+                # SEGMENT
+                seg = self.get_segment()
+                self.camera.vis_segment(seg)
+                
+                count = 0
+                grasp_matrix = None
+                while grasp_matrix is None:
+                    # Get grasp assemble 
+                    obj, guide_idx = self.get_target(seg)
+
+                    # Get grasp assemble pose
+                    grasp_matrix, grasp_width = self.get_grasp_pose(obj)
+
+                    if seg == []:
+                        print("CANNOT PICK ANY OBJECT")
+                        print("NEED TO CHANGE BOX")
+                        rospy.sleep(20)
+                        seg = self.get_segment()
+                
                 # print("\trecord: ", 
                 #     self.data_save.save_data(
                 #     "assemble",
@@ -740,6 +764,7 @@ class Test(object):
                     # self.move_to_home()
                     # self.gripper_server.GripperMoveRelease()
                     rospy.sleep(1)
+                    continue
                 # self.robot_server.SetVelocity(45)
                 # self.move_to_pose(place_prev, is_assemble=False)
                 # rospy.sleep(1)

@@ -2,14 +2,13 @@
   <node name="aruco_marker_detect" pkg="aruco_detect" type="aruco_node.py" output="screen" >
     <param name="aruco_type" type="str" value="DICT_6X6_1000" />
     <param name="aruco_length" type="double" value="0.05" />
-    <param name="aruco_transforms" type="str" value="/home/kkw0418/urp_ws/src/ArUcoROSpy/src/marker_transforms.npz" />
+    <param name="aruco_transforms" type="str" value="/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/ArucoRos/ArUcoROSpy/src/marker_transforms.npz" />
     <param name="aruco_update_rate" type="double" value="1" />
     <param name="aruco_obj_id" type="str" value="mobile_robot"/>
     <param name="aruco_main_marker_id" type="int" value="6" />
 
-    <param name="camera_img_topic" type="str" value="/rgb/image_raw"/>
-    <param name="camera_info_topic" type="str" value="/rgb/camera_info"/>
-    <param name="camera_frame_id" type="str" value="/rgb_camera_link"/>
-    <param name="base_frame" type="bool" value="$(arg base_frame)" />
+    <param name="camera_img_topic" type="str" value="/camera/color/image_raw"/>
+    <param name="camera_info_topic" type="str" value="/camera/color/camera_info"/>
+    <param name="camera_frame_id" type="str" value="/camera/color/metadata"/>
   </node> 
 </launch>

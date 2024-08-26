@@ -196,20 +196,22 @@ class Test(object):
         else:
             self.set_tf(self.scene["assemble"])
 
-        print("Get poses of guide objects")
+        print("Get poses of assemble objects")
 
         # SEGMENT
         seg = self.get_segment()
         
         print("start picking from center object")
         idx = 0
-        distance = float("inf")
-        for seg_idx, seg_info in enumerate(seg):
+        distance = []
+        for seg_info in seg:
             workspace = seg_info[1]
             center = np.array([workspace[0] - workspace[2], workspace[1] - workspace[3]])
-            if distance > np.linalg.norm(center - np.array([640, 360])):
-                distance = np.linalg.norm(center - np.array([640, 360]))
-                idx = int(seg_idx)
+            distance.append(np.linalg.norm(center - np.array([640, 360])))
+
+        idx = np.argsort(np.array(distance))[order:]
+
+        self.camera.vis_segment(seg)
         
         # while True:
         #     user_input = input('Enter idx\n****** Must Be INT *******\n')
@@ -221,9 +223,6 @@ class Test(object):
         #             break
         #         except:
         #             pass
-                    
-        print("idx", idx)
-        self.camera.vis_segment(seg)
 
         obj = seg[idx]
         obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
@@ -299,6 +298,124 @@ class Test(object):
                 continue
 
         return None
+    
+    def get_grasp_pose_v2(self):
+        """
+        RUN ICP for target object and generate grasp pose
+        """
+        # initiate assembly pose
+        self.assembly_pose = None
+
+        # Move to guide top view and set tf
+        if not self.simulation:
+            self.move_to_pose(self.assembly_top_view)
+            rospy.sleep(1.0)
+            self.set_tf()
+        else:
+            self.set_tf(self.scene["assemble"])
+
+        print("Get poses of assemble objects")
+        seg = self.get_segment()
+
+        print("start picking from center object")
+        distance = []
+        for seg_info in seg:
+            workspace = seg_info[1]
+            center = np.array([workspace[0] - workspace[2], workspace[1] - workspace[3]])
+            distance.append(np.linalg.norm(center - np.array([640, 360])))
+
+        
+        self.camera.vis_segment(seg)
+
+        while True:
+            user_input = input('Enter order\n****** Must Be INT *******\n')
+            if user_input == 'q':
+                return
+            else:
+                try:
+                    order = int(user_input)
+                    break
+                except:
+                    pass
+        
+        # order = 0
+        for i in range(len(seg)):
+            idx = np.argsort(np.array(distance))[order]
+            order += 1
+
+            obj = seg[idx]
+            obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
+            obj_depth = obj_seg * self.camera.depth_img
+            seg_instance = obj
+            obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+            self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
+            pose, pcd, guide_idx = self.assemble.get_pose(obj_pcd, obj[-1])
+            self.tf_interface.del_stamp('asset_' + str(obj[-1]))
+            self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
+            print("asset_" + str(obj[-1]))
+            self.vis.pub_test_pcd(pcd)
+            self.vis.pub_mesh()
+            
+            print("get_grasp_pose")
+            target_frame = 'asset_' + str(obj[-1])
+            rospy.sleep(1)
+            base2assemble = self.tf_interface.matrix('base_link', target_frame)
+            offset = 0.001
+            center = base2assemble[:3,3]
+            center[2] -= offset
+
+            # Point cloud processing
+            obj_seg = obj[0]
+            kernel_size_thin = 15  # 작은 커널 크기
+            kernel_thin = np.ones((kernel_size_thin, kernel_size_thin), np.uint8)
+            thin_dilated_mask = cv2.dilate(obj_seg, kernel_thin, iterations=1)
+
+            # 두 번째 dilation (두껍게 확장)
+            kernel_size_thick = 55  # 큰 커널 크기
+            kernel_thick = np.ones((kernel_size_thick, kernel_size_thick), np.uint8)
+            thick_dilated_mask = cv2.dilate(obj_seg, kernel_thick, iterations=1)
+
+            # 차이 계산 (두껍게 확장된 부분에서 얇게 확장된 부분을 제외)
+            difference_mask = cv2.subtract(thick_dilated_mask, thin_dilated_mask)
+            obs_depth = difference_mask * self.camera.depth_img
+
+            obs_pcd = self.camera.depth2pcd(obs_depth, self.tf_interface.matrix("base_link", "camera_calibration"))        
+            obs_pcd = obs_pcd[obs_pcd[:, 2] <= 0.5]
+        
+            grip_points = np.array(self.grip_tf_config[str(obj[-1])]).reshape(-1, 3)
+            print('grip_points')
+            print(grip_points)
+            grip_points = np.hstack([grip_points,np.ones((grip_points.shape[0], 1))])
+            grip_points = (base2assemble @ grip_points.T).T
+
+            is_parallel = grip_points[::2] - grip_points[1::2]
+            is_parallel = 0.001 - np.abs(is_parallel)
+            is_parallel = np.argwhere(is_parallel[:,2] > 0)
+            print('is_parallel')
+            print(is_parallel)
+            parallel_points = np.squeeze(grip_points.reshape(-1, 2, 4)[is_parallel])
+            self.vis.pub_test_pcd(obs_pcd)
+            sorf_list = np.argsort(parallel_points[:,0,2])[::-1]
+            for point_l, point_r in parallel_points[sorf_list]:
+                if self.check_collision(point_l, obs_pcd) & self.check_collision(point_r, obs_pcd):
+                    print(point_l, point_r)
+                    diff = point_l - point_r
+                    angle = np.rad2deg((np.arctan2(diff[1], diff[0])))
+                    center = (point_l + point_r)/2
+                    print("grip angle:", angle)
+                    print("grip point:", center)
+                    print("success")
+                    grasp_point = self.grip_point2matrix(center, angle)
+                    self.tf_interface.add_stamp("base_link", "grasp_point", grasp_point, m = True, deg = False)
+                    return obj, guide_idx, grasp_point, np.linalg.norm(point_l - point_r)
+
+                else:
+                    print("Failed")
+                    continue
+
+        print("Available object not found!!")  
+        return None
+
 
     def check_collision(self, point, pcd):
         
@@ -352,19 +469,19 @@ class Test(object):
             # visualiz
             pass
         else:
-            # EXECUTE
-            print("input grip width",self.grip_width)
-            self.gripper_server.GripperMoveGrip()
-            # self.gripper_server.GripperMove(self.grip_width)
-            self.move_to_pose(self.pre_grasp_pose)
-            test_pose = self.grasp_pose.copy()
-            test_pose[2,3] += (0.246 + 0.01 + 0.05)
-            self.move_to_pose(test_pose)
-            # self.move_to_pose(self.grasp_pose)
-            #### Gripper close ####
-            rospy.sleep(10)
+            # # EXECUTE
+            # print("input grip width",self.grip_width)
             # self.gripper_server.GripperMoveGrip()
-            self.move_to_pose(self.pre_grasp_pose)
+            # # self.gripper_server.GripperMove(self.grip_width)
+            # self.move_to_pose(self.pre_grasp_pose)
+            # test_pose = self.grasp_pose.copy()
+            # test_pose[2,3] += (0.246 + 0.01 + 0.05)
+            # self.move_to_pose(test_pose)
+            # # self.move_to_pose(self.grasp_pose)
+            # #### Gripper close ####
+            # rospy.sleep(10)
+            # # self.gripper_server.GripperMoveGrip()
+            # self.move_to_pose(self.pre_grasp_pose)
             self.set_tf()
 
     def matching_guide(self, idx):
@@ -572,11 +689,14 @@ class Test(object):
             if user_input == 'q':
                 return
             elif user_input == '':
-                # Get target pose
-                obj, guide_idx = self.get_target()
-                
+
                 # Get grasp pose
-                grasp_matrix, grasp_width = self.get_grasp_pose(obj)
+                obj, guide_idx, grasp_matrix, grasp_width = self.get_grasp_pose_v2()
+                
+                if grasp_matrix is None:
+                    print("collision occured for all object")
+                    print("NEED TO CHANGE BOX")
+                    return 
 
                 # print("\trecord: ", 
                 #     self.data_save.save_data(
@@ -588,24 +708,24 @@ class Test(object):
                 #     self.robot_state
                 #     )
                 # )
-                self.gripper_server.GripperMove(grasp_width + self.gripper_offset)
+                # self.gripper_server.GripperMove(grasp_width + self.gripper_offset)
 
-                pick = (grasp_matrix).copy()
-                pick_prev = (grasp_matrix).copy()
-                pick[2,3] -= 0.008
-                pick_prev[2,3] += 0.20
-                print("move to pick")
-                self.robot_server.SetVelocity(45)
-                self.move_to_pose(pick_prev)
-                rospy.sleep(1)
-                self.robot_server.SetVelocity(10)
-                self.move_to_pose(pick)
-                rospy.sleep(1)
-                self.gripper_server.GripperMoveGrip()
-                rospy.sleep(1)
-                self.robot_server.SetVelocity(45)
-                self.move_to_pose(pick_prev)
-                rospy.sleep(1)
+                # pick = (grasp_matrix).copy()
+                # pick_prev = (grasp_matrix).copy()
+                # pick[2,3] -= 0.008
+                # pick_prev[2,3] += 0.20
+                # print("move to pick")
+                # self.robot_server.SetVelocity(45)
+                # self.move_to_pose(pick_prev)
+                # rospy.sleep(1)
+                # self.robot_server.SetVelocity(10)
+                # self.move_to_pose(pick)
+                # rospy.sleep(1)
+                # self.gripper_server.GripperMoveGrip()
+                # rospy.sleep(1)
+                # self.robot_server.SetVelocity(45)
+                # self.move_to_pose(pick_prev)
+                # rospy.sleep(1)
 
                 # # Get pose of target matched guide
                 place_matrix = self.place(obj[-1], guide_idx, grasp_matrix)
@@ -614,19 +734,25 @@ class Test(object):
                 place[2,3] += 0.01
                 place_prev[2,3] += 0.2
                 print("move to place")
-                self.robot_server.SetVelocity(45)
-                self.move_to_pose(place_prev, is_assemble=False)
-                rospy.sleep(1)
-                self.robot_server.SetVelocity(10)
-                self.move_to_pose(place, is_assemble=False)
-                rospy.sleep(1)
-                # self.gripper_server.GripperMove(grasp_width + self.gripper_offset)
-                self.gripper_server.GripperMoveRelease()
-                rospy.sleep(1)
-                self.robot_server.SetVelocity(45)
-                self.move_to_pose(place_prev, is_assemble=False)
-                rospy.sleep(1)
-                self.move_to_home()
+                print("z axis difference: ", rotation_matrix_error(grasp_matrix, place_matrix))
+                if rotation_matrix_error(grasp_matrix, place_matrix) > 1:
+                    print("throw object at home pose")
+                    # self.move_to_home()
+                    # self.gripper_server.GripperMoveRelease()
+                    rospy.sleep(1)
+                # self.robot_server.SetVelocity(45)
+                # self.move_to_pose(place_prev, is_assemble=False)
+                # rospy.sleep(1)
+                # self.robot_server.SetVelocity(10)
+                # self.move_to_pose(place, is_assemble=False)
+                # rospy.sleep(1)
+                # # self.gripper_server.GripperMove(grasp_width + self.gripper_offset)
+                # self.gripper_server.GripperMoveRelease()
+                # rospy.sleep(1)
+                # self.robot_server.SetVelocity(45)
+                # self.move_to_pose(place_prev, is_assemble=False)
+                # rospy.sleep(1)
+                # self.move_to_home()
             else:
                 continue
 

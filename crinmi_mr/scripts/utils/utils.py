@@ -67,8 +67,8 @@ def rotation_matrix_error(T1, T2):
     # Z axis of rotation matrix
     v1 = T1[2, :3]
     v2 = T2[2, :3]
-    print("v1", v1)
-    print("v2", v1)
+    # print("v1", v1)
+    # print("v2", v1)
 
     # Normalize the vectors
     v1_norm = v1 / np.linalg.norm(v1)

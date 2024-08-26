@@ -200,23 +200,30 @@ class Test(object):
 
         # SEGMENT
         seg = self.get_segment()
-
-        # TODO
-        # TODO
-        # TODO
-
-        self.camera.vis_segment(seg)
-        while True:
-            user_input = input('Enter idx\n****** Must Be INT *******\n')
-            if user_input == 'q':
-                return
-            else:
-                try:
-                    idx = int(user_input)
-                    break
-                except:
-                    pass
+        
+        print("start picking from center object")
+        idx = 0
+        distance = float("inf")
+        for seg_idx, seg_info in enumerate(seg):
+            workspace = seg_info[1]
+            center = np.array([workspace[0] - workspace[2], workspace[1] - workspace[3]])
+            if distance > np.linalg.norm(center - np.array([640, 360])):
+                distance = np.linalg.norm(center - np.array([640, 360]))
+                idx = int(seg_idx)
+        
+        # while True:
+        #     user_input = input('Enter idx\n****** Must Be INT *******\n')
+        #     if user_input == 'q':
+        #         return
+        #     else:
+        #         try:
+        #             idx = int(user_input)
+        #             break
+        #         except:
+        #             pass
                     
+        print("idx", idx)
+        self.camera.vis_segment(seg)
 
         obj = seg[idx]
         obj_seg = cv2.erode(obj[0], None, iterations=2) # asset

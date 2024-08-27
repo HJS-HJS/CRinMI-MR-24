@@ -35,7 +35,7 @@ class Test(object):
         gripper_server = GripperControlServer(self.ip_config["gripper"], 502)
         rospy.loginfo('Robot Gripper Server Ready')
         # ========= camera interface test =========
-        # camera = CameraInterface()
+        camera = CameraInterface()
         rospy.loginfo('Camera Interface Ready')
         # ========= data save interface test =========
         self.data_save = DataSaveInterface(save_dir)
@@ -84,7 +84,7 @@ class Test(object):
         # print(target_marker)
         # gripper_server.GripperMoveGrip()
         # robot_server.SetVelocity(10)
-        robot_server.RobotMoveL(self.guide_top_view)
+        # robot_server.RobotMoveL(self.guide_top_view)
         # vis = VisualizeInterface()
         # pcd = camera.pcd(np.eye(4))
         # vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],1)])
@@ -127,8 +127,8 @@ class Test(object):
             elif user_input == '':
                 robot_state = robot_server.RecvRobotState()
                 self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, robot_state, m = True, deg = True)
-                # pcd = camera.pcd(np.eye(4))
-                # self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],10)])
+                pcd = camera.pcd(np.eye(4))
+                self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],10)])
                 cam_matrix =  self.tf_interface.matrix(target="base_link", source="camera_calibration")
                 print('robot_state')
                 print(robot_state)

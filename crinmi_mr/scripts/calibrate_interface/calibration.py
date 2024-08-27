@@ -134,12 +134,12 @@ class CalibrationInterface(object):
 
         if len(data) == 6:
             marker_id_mapping = {
-                'l_t': "marker_40_pose",  # left top
-                'l_m': "marker_30_pose",  # left middle
-                'l_b': "marker_29_pose",  # left bottom
-                'r_t': "marker_21_pose",  # right top
-                'r_m': "marker_6_pose",  # right middle
-                'r_b': "marker_4_pose"   # right bottom
+                'l_t': "marker_29_pose",  # left top
+                'l_m': "marker_6_pose",  # left middle
+                'l_b': "marker_28_pose",  # left bottom
+                'r_t': "marker_30_pose",  # right top
+                'r_m': "marker_4_pose",  # right middle
+                'r_b': "marker_21_pose"   # right bottom
             }
             marker_positions = {
                 'l_t': base2marker[marker_id_mapping['l_t']][:3],

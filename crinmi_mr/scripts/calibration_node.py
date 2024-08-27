@@ -49,19 +49,30 @@ class Test(object):
 
     
     def grip(self):
+        self.robot_server.RobotMoveJ(self.pose_config[str(self.workspace_config)]["home_pose"])
+        rospy.sleep(1)
+        while not self.robot_server.wait:
+            print("wait")
+            rospy.sleep(1)
+
         self.gripper_server.GripperMoveRelease()
         rospy.sleep(1)
-        self.gripper_server.GripperMove()
+        self.gripper_server.GripperMoveGrip()
         rospy.sleep(1)
 
     def cali(self, assemble:str):
+        # self.robot_server.RobotMoveJ(self.pose_config[str(self.workspace_config)]["home_pose"])
+        # rospy.sleep(1)
+        # while not self.robot_server.wait:
+        #     print("wait")
+        #     rospy.sleep(1)
+
         if assemble == 'a':
             pose = np.array(self.pose_config[str(self.workspace_config)]['assemble_capture_pose'])
             is_assemble = True
         elif assemble == 'g':
             pose = np.array(self.pose_config[str(self.workspace_config)]['guide_capture_pose'])
             is_assemble = False
-    
         self.robot_server.RobotMoveL(pose)
         rospy.sleep(1)
         while not self.robot_server.wait:
@@ -83,19 +94,41 @@ class Test(object):
         rospy.sleep(1)
 
     def test(self, assemble:str):
+        self.gripper_server.GripperMoveRelease()
+        rospy.sleep(1)
+        self.gripper_server.GripperMoveGrip()
+        rospy.sleep(1)
         if assemble == 'a':
+            home_pose = np.array(self.pose_config[str(self.workspace_config)]['assemble_capture_pose'])
             is_assemble = True
         elif assemble == 'g':
+            home_pose = np.array(self.pose_config[str(self.workspace_config)]['guide_capture_pose'])
             is_assemble = False
 
-        translate_set = [
-            [0, 0 ,0],
-            ]
+        translate_set =[
+            [-0.35591771, -0.70861318, 0.00412545],
+            [-0.33542992, -0.81732723, 0.01023761],
+            [-0.24343641, -0.82559251, 0.01882259],
+            [-0.25028860, -0.70895178, 0.00987003],
+            [-0.23673559, -0.60596558, 0.00284474],
+            [-0.34436873, -0.59827143, 0.00644273],
+        ]
+
+        offset, translate = self.calibration.calculate_offset(translate_set[0], assemble = is_assemble)
+        pose = pose2matrix([translate[0], translate[1], translate[2] + 0.246, 90, 0, 42.8])
+        pose[2,3] += 0.30
+        self.robot_server.RobotMoveL(pose)
+        rospy.sleep(1)
+        while not self.robot_server.wait:
+            print("wait")
+            rospy.sleep(1)
+        rospy.sleep(1)
+
 
         for translate in translate_set:
             offset, translate = self.calibration.calculate_offset(translate, assemble = is_assemble)
-            pose = pose2matrix([translate[0], translate[1], translate[2] + 0.246, 90, 0, 44 + pose])
-            pose[2,3] += 0.02
+            pose = pose2matrix([translate[0], translate[1], translate[2] + 0.246, 90, 0, 42.8])
+            pose[2,3] += 0.03
 
             self.robot_server.RobotMoveL(pose)
             rospy.sleep(1)
@@ -104,6 +137,23 @@ class Test(object):
                 rospy.sleep(1)
             rospy.sleep(5)
 
+        offset, translate = self.calibration.calculate_offset(translate_set[-1], assemble = is_assemble)
+        pose = pose2matrix([translate[0], translate[1], translate[2] + 0.246, 90, 0, 42.8])
+        pose[2,3] += 0.30
+        self.robot_server.RobotMoveL(pose)
+        rospy.sleep(1)
+        while not self.robot_server.wait:
+            print("wait")
+            rospy.sleep(1)
+        rospy.sleep(1)
+
+        self.robot_server.RobotMoveL(home_pose)
+        rospy.sleep(1)
+        while not self.robot_server.wait:
+            print("wait")
+            rospy.sleep(1)
+        rospy.sleep(5)
+
 
 if __name__ == '__main__':
     rospy.init_node('crinmi_mr')
@@ -111,15 +161,15 @@ if __name__ == '__main__':
     rate = rospy.Rate(10)
 
     while not rospy.is_shutdown():
-        user_input = input('g: grip\nca: cali assemble\ncg: cali guide\nta:test assemble\ntg:test guide')
+        user_input = input('g: grip\nca: cali assemble\ncg: cali guide\nta:test assemble\ntg:test guide\n')
         if user_input == 'q':
             break
         elif user_input == 'g':
             server.grip()
         elif user_input == 'ca':
-            server.cali('g')
-        elif user_input == 'cg':
             server.cali('a')
+        elif user_input == 'cg':
+            server.cali('g')
         elif user_input == 'ta':
             server.test('a')
         elif user_input == 'tg':

@@ -34,6 +34,7 @@ class RobotControlServer():
         self.wait = True
         duration = rospy.Duration(0.1)
         timer = rospy.Timer(duration, self._state_update_callback)
+        self.robot_joint = None
 
     def _state_update_callback(self, event):
         """ 
@@ -57,6 +58,7 @@ class RobotControlServer():
 
         self.R = self.current_pose_matrix[:3, :3]
         self.T = self.current_pose_matrix[3, :3]
+        self.robot_joint = robotInfo.Jnt[5]
 
     def RecvRobotState(self):
         """ 
@@ -111,6 +113,10 @@ class RobotControlServer():
         # internal code of sdk ('moveb') is little-bit changed because of input     
         if self.wait is True:
             self.rb10.moveb(0, 0.02, 5, *H_array.reshape(-1,16).tolist())
+
+    @property
+    def joint(self):
+        return self.robot_joint
 
     def SetVelocity(self, velocity):
         """ Set robot default speed for moving  

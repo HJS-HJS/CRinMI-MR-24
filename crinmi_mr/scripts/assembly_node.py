@@ -250,14 +250,36 @@ class Test(object):
         self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
         self.vis.pub_test_pcd(pcd)
         self.vis.pub_mesh()
+
+        #### get walls ####
+        wall_seg = 1 - obj_seg
+        wall_depth = wall_seg * self.camera.depth_img
+        wall_pcd = self.camera.depth2pcd(wall_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+        # cut upper part
+        wall_pcd = wall_pcd[wall_pcd[:,2] > 0.1]
+
+        #### get obstacles ####
+        obs_seg = np.zeros_like(seg[0][0])
+        # Integrate all except target object
+        for j, obstacle in enumerate(seg):
+            if j == idx:
+                continue
+            obs_seg[obstacle[0] > 0] = 1
+        obs_depth = obs_seg * self.camera.depth_img
+        obs_pcd = self.camera.depth2pcd(obs_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+        
+        # Integrate wall and obstacles
+        obs_pcd = np.vstack((wall_pcd, obs_pcd))
+        # Visualization
+        self.vis.pub_target_pcd(obs_pcd[np.arange(1,obs_pcd.shape[0],5)])
         
         print("before", len(seg))
         del seg[idx]
         print("after", len(seg))
 
-        return obj, guied_idx
+        return obj, guied_idx, obs_pcd
     
-    def get_grasp_pose(self, obj):
+    def get_grasp_pose(self, obj, obs_pcd=None):
         print("get_grasp_pose")
         target_frame = 'asset_' + str(obj[-1])
         rospy.sleep(1)
@@ -266,23 +288,9 @@ class Test(object):
         center = base2assemble[:3,3]
         center[2] -= offset
 
-        # Point cloud processing
-        obj_seg = obj[0]
-        kernel_size_thin = 15  # 작은 커널 크기
-        kernel_thin = np.ones((kernel_size_thin, kernel_size_thin), np.uint8)
-        thin_dilated_mask = cv2.dilate(obj_seg, kernel_thin, iterations=1)
-
-        # 두 번째 dilation (두껍게 확장)
-        kernel_size_thick = 55  # 큰 커널 크기
-        kernel_thick = np.ones((kernel_size_thick, kernel_size_thick), np.uint8)
-        thick_dilated_mask = cv2.dilate(obj_seg, kernel_thick, iterations=1)
-
-        # 차이 계산 (두껍게 확장된 부분에서 얇게 확장된 부분을 제외)
-        difference_mask = cv2.subtract(thick_dilated_mask, thin_dilated_mask)
-        obs_depth = difference_mask * self.camera.depth_img
-
-        obs_pcd = self.camera.depth2pcd(obs_depth, self.tf_interface.matrix("base_link", "camera_calibration"))        
-        obs_pcd = obs_pcd[obs_pcd[:, 2] <= 0.5]
+        # check obs exist
+        if obs_pcd is None:
+            print("obs not defined")
     
         grip_points = np.array(self.grip_tf_config[str(obj[-1])]).reshape(-1, 3)
         print('grip_points')
@@ -295,18 +303,10 @@ class Test(object):
         is_parallel = np.argwhere(is_parallel[:,2] > 0)
         print('is_parallel')
         print(is_parallel)
-        print('is_parallel.shape')
-        print(is_parallel.shape)
-        print('parallel_points.shape')
-        print(grip_points.shape)
+        parallel_points = np.squeeze(grip_points.reshape(-1, 2, 4)[is_parallel])
         if len(is_parallel) == 1:
-            parallel_points = np.squeeze(grip_points.reshape(-1, 2, 4)[is_parallel])
             parallel_points = np.expand_dims(parallel_points, axis=0)
-        else:
-            parallel_points = np.squeeze(grip_points.reshape(-1, 2, 4)[is_parallel])
             
-        print('parallel_points.shape')
-        print(parallel_points.shape)
         self.vis.pub_test_pcd(obs_pcd)
         sorf_list = np.argsort(parallel_points[:,0,2])[::-1]
         for point_l, point_r in parallel_points[sorf_list]:
@@ -327,131 +327,20 @@ class Test(object):
                 continue
 
         return None, None
-    
-    def get_grasp_pose_v2(self):
-        """
-        RUN ICP for target object and generate grasp pose
-        """
-        # Move to guide top view and set tf
-        if not self.simulation:
-            self.move_to_pose(self.assembly_top_view)
-            rospy.sleep(1.0)
-            self.set_tf()
-        else:
-            self.set_tf(self.scene["assemble"])
-
-        print("Get poses of assemble objects")
-        seg = self.get_segment()
-
-        print("start picking from center object")
-        distance = []
-        for seg_info in seg:
-            workspace = seg_info[1]
-            center = np.array([workspace[0] - workspace[2], workspace[1] - workspace[3]])
-            distance.append(np.linalg.norm(center - np.array([640, 360])))
-
-        
-        self.camera.vis_segment(seg)
-
-        while True:
-            user_input = input('Enter order\n****** Must Be INT *******\n')
-            if user_input == 'q':
-                return
-            else:
-                try:
-                    order = int(user_input)
-                    break
-                except:
-                    pass
-        
-        # order = 0
-        for i in range(len(seg)):
-            idx = np.argsort(np.array(distance))[order]
-            order += 1
-
-            obj = seg[idx]
-            obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
-            obj_depth = obj_seg * self.camera.depth_img
-            seg_instance = obj
-            obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
-            self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
-            pose, pcd, guide_idx = self.assemble.get_pose(obj_pcd, obj[-1])
-            self.tf_interface.del_stamp('asset_' + str(obj[-1]))
-            self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
-            print("asset_" + str(obj[-1]))
-            self.vis.pub_test_pcd(pcd)
-            self.vis.pub_mesh()
-            
-            print("get_grasp_pose")
-            target_frame = 'asset_' + str(obj[-1])
-            rospy.sleep(1)
-            base2assemble = self.tf_interface.matrix('base_link', target_frame)
-            offset = 0.001
-            center = base2assemble[:3,3]
-            center[2] -= offset
-
-            # Point cloud processing
-            obj_seg = obj[0]
-            kernel_size_thin = 15  # 작은 커널 크기
-            kernel_thin = np.ones((kernel_size_thin, kernel_size_thin), np.uint8)
-            thin_dilated_mask = cv2.dilate(obj_seg, kernel_thin, iterations=1)
-
-            # 두 번째 dilation (두껍게 확장)
-            kernel_size_thick = 55  # 큰 커널 크기
-            kernel_thick = np.ones((kernel_size_thick, kernel_size_thick), np.uint8)
-            thick_dilated_mask = cv2.dilate(obj_seg, kernel_thick, iterations=1)
-
-            # 차이 계산 (두껍게 확장된 부분에서 얇게 확장된 부분을 제외)
-            difference_mask = cv2.subtract(thick_dilated_mask, thin_dilated_mask)
-            obs_depth = difference_mask * self.camera.depth_img
-
-            obs_pcd = self.camera.depth2pcd(obs_depth, self.tf_interface.matrix("base_link", "camera_calibration"))        
-            obs_pcd = obs_pcd[obs_pcd[:, 2] <= 0.5]
-        
-            grip_points = np.array(self.grip_tf_config[str(obj[-1])]).reshape(-1, 3)
-            print('grip_points')
-            print(grip_points)
-            grip_points = np.hstack([grip_points,np.ones((grip_points.shape[0], 1))])
-            grip_points = (base2assemble @ grip_points.T).T
-
-            is_parallel = grip_points[::2] - grip_points[1::2]
-            is_parallel = 0.001 - np.abs(is_parallel)
-            is_parallel = np.argwhere(is_parallel[:,2] > 0)
-            print('is_parallel')
-            print(is_parallel)
-            parallel_points = np.squeeze(grip_points.reshape(-1, 2, 4)[is_parallel])
-            self.vis.pub_test_pcd(obs_pcd)
-            sorf_list = np.argsort(parallel_points[:,0,2])[::-1]
-            for point_l, point_r in parallel_points[sorf_list]:
-                if self.check_collision(point_l, obs_pcd) & self.check_collision(point_r, obs_pcd):
-                    print(point_l, point_r)
-                    diff = point_l - point_r
-                    angle = np.rad2deg((np.arctan2(diff[1], diff[0])))
-                    center = (point_l + point_r)/2
-                    print("grip angle:", angle)
-                    print("grip point:", center)
-                    print("success")
-                    grasp_point = self.grip_point2matrix(center, angle)
-                    self.tf_interface.add_stamp("base_link", "grasp_point", grasp_point, m = True, deg = False)
-                    return obj, guide_idx, grasp_point, np.linalg.norm(point_l - point_r)
-
-                else:
-                    print("Failed")
-                    continue
-
-        print("Available object not found!!")  
-        return None
 
     def check_collision(self, point, pcd):
         
         diff = pcd - point[:3] # (n, 3)
 
-        squared_distances = np.linalg.norm(diff[np.where(diff[:,2] > 0)], axis=1) # (n, )
+        # Calculate x,y distance
+        squared_distances = np.linalg.norm(diff[np.where(diff[:,2] > 0)][:,:2], axis=1) # (n, )
         # finger tip size
-        threshold = 0.01 + self.gripper_offset
+        threshold = 0.01 + self.gripper_offset/2
+        # No upper points
         if len(squared_distances)==0:
                return True
-        if np.any(squared_distances > threshold):
+        # All distances should be larger than threshold
+        if np.all(squared_distances > threshold):
             return True
         else:
             return False
@@ -552,47 +441,6 @@ class Test(object):
 
         # pick = grasp_matrix
         return base2place[arg]
-
-        pick[2,3] -= 0.005
-        place[2,3] += 0.03
-
-        print("move to pick")
-        self.robot_server.SetVelocity(10)
-        self.move_to_pose(pick)
-        rospy.sleep(5)
-        self.gripper_server.GripperMoveGrip()
-        print("move to home")
-        self.robot_server.SetVelocity(40)
-        self.move_to_home()
-        rospy.sleep(5)
-        print("move to place")
-        self.robot_server.SetVelocity(10)
-        self.move_to_pose(place)
-
-
-        # if 
-        #     print("GUIDE POSE NOT FOUND")
-        #     return
-        
-        # if self.pre_grasp_pose is None:
-        #     print("PRE-GRASP POSE NOT FOUND")
-        #     return
-        
-        # # initiate
-        # self.guide_pose = self.guide[assemble_idx]
-        # self.pre_placing_pose = None
-        # self.set_tf()
-
-        # # calculate pre-placing pose
-        # self.pre_placing_pose = a_t_g @ self.pre_grasp_pose
-
-        # # EXECUTE
-        # self.move_to_pose(self.pre_placing_pose)
-        # self.move_to_pose(self.guide_pose)
-        # #### Gripper open ####
-        # self.gripper_server.GripperMoveRelease()
-        # self.set_tf()
-        
 
     def plot_pose(self, ax, pose):
         """

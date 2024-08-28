@@ -4,7 +4,6 @@ import sys
 import os
 import cv2
 import yaml
-import math
 import numpy as np
 import matplotlib.pyplot as plt
 import rospy
@@ -42,10 +41,13 @@ class Test(object):
         self.gripper_offset = 0.02
         # self.reset_guide = False
         self.reset_guide = True
-        self.simulation = False
-        # self.scene = {"guide" : "guide_0027", "assemble": "assemble_0021"}
+        # self.simulation = False
+        self.simulation = True
+        # self.scene = {"guide" : "guide_0027", "assemble": "assemble_0021"0}
         # self.scene = {"guide" : "guide_0025", "assemble": "assemble_0026"}
-        self.scene = {"guide" : "guide_0025", "assemble": "depth_0071"}
+        # self.scene = {"guide" : "guide_0060", "assemble": "depth_0071"}
+        self.scene = {"guide" : "guide_0142", "assemble": "depth_0071"}
+        # self.scene = {"guide" : "depth_0067", "assemble": "depth_0071"}
 
         # ========= RB10 interface test =========
         if not self.simulation: 
@@ -85,11 +87,6 @@ class Test(object):
         if not self.simulation: 
             self.robot_state = self.robot_server.RecvRobotState()
             self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, self.robot_state, m = True, deg = True)
-            rospy.sleep(0.5)
-
-            # pcd = self.camera.pcd()
-            # self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],10)])
-
             self.guide_top_view = np.array(self.pose_config[str(self.workspace_config)]['guide_capture_pose'])
             self.assembly_top_view = np.array(self.pose_config[str(self.workspace_config)]['assemble_capture_pose'])
 
@@ -121,11 +118,9 @@ class Test(object):
             self.camera.read_image(scene)
             
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, self.robot_state, m = True, deg = True)
-        # rospy.sleep(1)
         pcd = self.camera.pcd()
         self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],10)])
         self.vis.pub_mesh()
-        # self.tf_interface.broadcast_once()
 
     def get_segment(self, vis:bool = True, data:str = None):
         """
@@ -136,7 +131,7 @@ class Test(object):
         color_img = self.camera.color_img
         self.segment_server.run(color_img, vis)
         seg = self.segment_server.img2SegmentMask()
-        # Visualization
+
         return seg
     
     def get_guide_poses(self):
@@ -162,10 +157,19 @@ class Test(object):
                 seg = self.get_segment(vis=False)
             else:
                 seg = self.get_segment(self.scene['guide'])
-
+            # self.camera.vis_segment(seg)
+            # self.camera.vis_image_segment(seg, image=self.camera.color_img)
             self.vis.pub_mesh()
             for obj in seg:
-                obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
+                crop_list = [6, 7, 9, 10, 11, 13, 15]
+                if obj[-1] in crop_list:
+                    h_image = self.camera.hsv_segment_h(self.camera.color_img, copy.deepcopy(obj[0]))
+                    s_image = self.camera.hsv_segment_s(self.camera.color_img, copy.deepcopy(obj[0]))
+                    obj_seg = s_image * h_image
+                    obj_seg = cv2.erode(obj_seg, None, iterations=1) # asset
+                    obj_seg = cv2.dilate(obj_seg, None, iterations=1) # asset
+                else:
+                    obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
                 obj_depth = obj_seg * self.camera.depth_img
                 obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
                 self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
@@ -602,7 +606,7 @@ class Test(object):
 
         # Get guide poses
         self.get_guide_poses()
-        self.record('guide')
+        # self.record('guide')
         
         while True:
             # Move to guide top view and set tf

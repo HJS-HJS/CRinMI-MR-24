@@ -25,3 +25,7 @@ class AssembleInterface():
         mesh_pcd.transform(pose)
 
         return pose @ matrix, mesh_pcd.points, guide_idx
+    @staticmethod
+    def show_pointcloud(*args):
+        ICP.vis_pcds(args)
+    

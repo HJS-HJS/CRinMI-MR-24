@@ -8,7 +8,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import pickle
-import open3d
 
 import rospy
 import rospkg
@@ -235,7 +234,34 @@ class CameraInterface(object):
         z = depth
 
         return x, y, z
-    
+
+    @staticmethod
+    def hsv_segment_h(image, segment):
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        h = h * segment
+        threshold2 = np.mean(h[np.where(s > 0)])
+        thresh_h = cv2.threshold(h, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        return (thresh_h.astype(float)/255).astype(np.uint8)
+
+    @staticmethod
+    def hsv_segment_s(image, segment):
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        s = s * segment
+        threshold2 = np.mean(s[np.where(s > 0)])
+        thresh_h = cv2.threshold(s, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        return (thresh_h.astype(float)/255).astype(np.uint8)
+
+    @staticmethod
+    def hsv_segment_v(image, segment):
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        v = v * segment
+        threshold2 = np.mean(v[np.where(s > 0)])
+        thresh_h = cv2.threshold(v, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        return (thresh_h.astype(float)/255).astype(np.uint8)
+
     def show_intrinsic(self):
         """_summary_
         """
@@ -274,20 +300,45 @@ class CameraInterface(object):
         for idx, seg in enumerate(segment_list):
             image = fig.add_subplot(axis, axis, idx + 1)
             image.imshow(seg[0])
-            # image.set_title(seg[2])
         plt.show()
 
+    @staticmethod
+    def vis_image_segment(segment_list, image):
+        axis = int(np.ceil(np.sqrt(len(segment_list))))
+        
+        fig = plt.figure()
+        image_axis = fig.add_subplot(1, 1, 1)
+        image_axis.imshow(image)
+        plt.show()
+
+        fig = plt.figure()
+        for idx, seg in enumerate(segment_list):
+            h_img = CameraInterface.hsv_segment_h(image, seg[0])
+            s_img = CameraInterface.hsv_segment_s(image, seg[0])
+            image_axis = fig.add_subplot(axis, axis, idx + 1)
+            image_axis.imshow(h_img * s_img)
+        plt.show()
+
+        
 if __name__ == '__main__':
     rospy.init_node('camera_interface')
     module = CameraInterface()
-    name = "3"
-    rospy.loginfo('[Crinmi MR] Save/Read Image')
-    # rospy.spin()
-    # module.save_image(name)
+
+    import sys
+    import os
+    current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    sys.path.append(current_dir)
+    from segment_interface.yolo_segment_interface import SegmentInterface
+    segment_server = SegmentInterface()
+
+    # name = "guide_0060"
+    # name = "guide_0106"
+    # name = "guide_0119"
+    # name = "guide_0142"
+    name = "depth_0061"
     module.read_image(name)
-    # rospy.loginfo('[Crinmi MR] vis Image')
     # module.vis_image()
-    module.show_intrinsic()
-    rospy.loginfo('[Crinmi MR] vis PCD')
-    module.vis_pcd(module.depth_img)
-    rospy.loginfo('[Crinmi MR] Node Closed')
+    segment_server.run(module.color_img, False)
+    seg = segment_server.img2SegmentMask()
+    module.vis_image_segment(seg, module.color_img)
+

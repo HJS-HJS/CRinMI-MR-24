@@ -6,6 +6,7 @@ import tf.transformations
 import rospkg
 
 from assemble_interface.yolo_class import CLASS
+# from yolo_class import CLASS
 
 class ICP():
     def __init__(self, voxel_size:float = 0.001, cost_change_threshold:float = 0.000005):
@@ -57,7 +58,8 @@ class ICP():
             angle_set = np.array([np.pi/2, 0, -eigen_angle]) + angle_list
             matrix = tf.transformations.euler_matrix(angle_set[0], angle_set[1], angle_set[2])
             matrix[0:3,3] = depth_pcd.get_center() - mesh_pcd.get_center()
-            matrix[0:3,3] += [0, 0, -0.015]
+            # matrix[0:3,3] += [0, 0, -0.015]
+            matrix[0:3,3] += [0, 0, -0.02]
             mesh_pcd.transform(matrix)
             if id == 12:
                 max_val = np.max(depth_pcd.points,axis=0)[2]
@@ -239,6 +241,23 @@ class ICP():
         # vis.add_geometry(origin_frame)
         vis.run()
 
+
+    @staticmethod
+    def vis_pcds(pcd):
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
+        for cloud in pcd:
+            pcd_o3d = o3d.geometry.PointCloud()
+            pcd_o3d.points = o3d.utility.Vector3dVector(cloud)
+            vis.add_geometry(pcd_o3d)
+            pcd_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=pcd_o3d.get_center())
+            vis.add_geometry(pcd_frame)
+
+        origin_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=[0, 0, 0])
+        vis.add_geometry(origin_frame)
+
+        vis.run()
+
     @staticmethod
     def get_class_name(id):
         return CLASS[id]["name"]
@@ -253,3 +272,53 @@ class ICP():
         eigen_value, vector = np.linalg.eig(np.cov(array[:,0], array[:,1]))
         vector = vector[np.argmax(eigen_value)]
         return -np.arctan2(vector[1], vector[0])
+    
+    def crop_mesh_pointcloud(self, id):
+        mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
+        mesh.scale(0.001, center=([0, 0, 0]))
+        # mesh to pcd
+        mesh_pcd = mesh.sample_points_uniformly(number_of_points = CLASS[id]['number_of_points'])
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
+        vis.add_geometry(mesh_pcd)
+        origin_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.01, origin=[0, 0, 0])
+        vis.add_geometry(origin_frame)
+        vis.run()
+        
+
+        # points = np.array([
+        #     [0.1, 0.1, -0.1],
+        #     [-0.1, 0.1, -0.1],
+        #     [-0.1, -0.1, -0.1],
+        #     [0.1, -0.1, -0.1],
+        #     [0.1, -0.1, 0.1],
+        #     [0.1, 0.1, 0.1],
+        #     [-0.1, 0.1, 0.1],
+        #     [-0.1, -0.1, 0.1],
+        # ])
+
+
+        vol = o3d.visualization.SelectionPolygonVolume()
+        vol.orthogonal_axis = "Z"
+        vol.axis_min = -2000
+        vol.axis_max = 4000
+        # vol.bounding_polygon = o3d.utility.Vector3dVector(points)
+        # cropped_pcd = vol.crop_point_cloud(mesh_pcd)
+
+        id = 12 
+        mesh2 = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
+        # mesh2.scale(0.001, center=([0, 0, 0]))
+        # mesh to pcd
+        mesh_pcd2 = mesh.sample_points_uniformly(number_of_points = 5000)
+
+        vol.bounding_polygon = o3d.utility.Vector3dVector(mesh_pcd.points)
+
+        cropped_pcd = vol.crop_point_cloud(mesh_pcd2)
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
+        vis.add_geometry(cropped_pcd)
+        vis.run()
+
+if __name__ == '__main__':
+    icp = ICP(0.001, 0.0000001)
+    icp.crop_mesh_pointcloud(6)

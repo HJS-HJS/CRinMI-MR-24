@@ -775,14 +775,7 @@ class Test(object):
             # calculate target assemble
             grasp_matrix = None
             while grasp_matrix is None:
-                # Get grasp assemble 
-                obj, guide_idx = self.get_target(seg)
-
-                # Get grasp assemble pose, grip width
-                grasp_matrix, grasp_width = self.get_grasp_pose(obj)
-                print('\n\n\nnp.rad2deg(self.robot_server.joint)')
-                print(np.rad2deg(self.robot_server.joint))
-                print('\n\n\n')
+                
                 # When available assemble is not exist
                 if seg == []:
                     i_time = 0
@@ -793,6 +786,15 @@ class Test(object):
                         rospy.logfatal("wait")
                         rospy.sleep(1)
                     seg = self.get_segment(vis=False)
+
+                # Get grasp assemble 
+                obj, guide_idx = self.get_target(seg)
+
+                # Get grasp assemble pose, grip width
+                grasp_matrix, grasp_width = self.get_grasp_pose(obj)
+                print('\n\n\nnp.rad2deg(self.robot_server.joint)')
+                print(np.rad2deg(self.robot_server.joint))
+                print('\n\n\n')
 
             # move gripper to pick and grip
             if not self.simulation:

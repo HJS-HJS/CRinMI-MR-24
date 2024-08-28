@@ -798,18 +798,19 @@ class Test(object):
             # calculate target assemble
             grasp_matrix = None
             while grasp_matrix is None:
-                # Get grasp assemble 
-                obj, guide_idx, obs_pcd = self.get_target(seg)
-
-                # Get grasp assemble pose, grip width
-                grasp_matrix, grasp_width = self.get_grasp_pose(obj, obs_pcd)
 
                 # When available assemble is not exist
                 if seg == []:
                     rospy.logfatal("CANNOT PICK ANY OBJECT")
                     rospy.logfatal("NEED TO CHANGE BOX")
-                    rospy.sleep(20)
+                    rospy.sleep(10)
                     seg = self.get_segment()
+
+                # Get grasp assemble 
+                obj, guide_idx, obs_pcd = self.get_target(seg)
+
+                # Get grasp assemble pose, grip width
+                grasp_matrix, grasp_width = self.get_grasp_pose(obj, obs_pcd)
 
             # move gripper to pick and grip
             if not self.simulation:

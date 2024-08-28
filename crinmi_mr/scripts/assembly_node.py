@@ -609,8 +609,6 @@ class Test(object):
             print("Get poses of assemble objects")
             if not self.simulation:
                 self.move_to_pose(self.assembly_top_view, speed = 35, is_assemble=True)
-                # rospy.sleep(1.0)
-                # rospy.sleep(0.5)
                 self.set_tf()
             else:
                 self.set_tf(self.scene["assemble"])
@@ -618,7 +616,7 @@ class Test(object):
             # SEGMENT assemble
             seg = self.get_segment(vis = False)
             # self.camera.vis_segment(seg)
-            self.record('assemble')
+            # self.record('assemble')
             
             # calculate target assemble
             grasp_matrix = None
@@ -640,18 +638,11 @@ class Test(object):
 
                 # Get grasp assemble pose, grip width
                 grasp_matrix, grasp_width = self.get_grasp_pose(obj)
-                print('\n\n\nnp.rad2deg(self.robot_server.joint)')
-                print(np.rad2deg(self.robot_server.joint))
-                print('\n\n\n')
 
             # move gripper to pick and grip
             if not self.simulation:
                 self.gripper_server.GripperMove(grasp_width + self.gripper_offset)
                 self.move_to_pick(grasp_matrix, enter_speed=35, pick_speed=10, is_assemble=True, id=obj[-1])
-
-                print('\n\n\nnp.rad2deg(self.robot_server.joint)')
-                print(np.rad2deg(self.robot_server.joint))
-                print('\n\n\n')
                 
             # # Get pose of target matched guide
             place_matrix = self.place(obj[-1], guide_idx, grasp_matrix)

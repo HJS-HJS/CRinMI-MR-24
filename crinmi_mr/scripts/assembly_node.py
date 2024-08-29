@@ -39,17 +39,19 @@ class Test(object):
         self.grip_tf_config       = rospy.get_param("~match_grip")
 
         self.gripper_offset = 0.02
-        self.reset_guide = False
-        # self.reset_guide = True
-        # self.simulation = False
-        self.simulation = True
+        # self.gripper_offset = 0.01
+        # self.reset_guide = False
+        self.reset_guide = True
+        self.simulation = False
+        # self.simulation = True
         # self.scene = {"guide" : "guide_0027", "assemble": "assemble_0021"0}
         # self.scene = {"guide" : "guide_0025", "assemble": "assemble_0026"}
         # self.scene = {"guide" : "guide_0060", "assemble": "depth_0071"}
         # self.scene = {"guide" : "depth_0067", "assemble": "depth_0071"}
-        self.scene = {"guide" : "guide_0142", "assemble": "assemble_0"}
+        # self.scene = {"guide" : "guide_0142", "assemble": "assemble_0"}
+        self.scene = {"guide" : "guide_0060", "assemble": "assemble_0"}
         # self.assemble_id = 20
-        self.assemble_id = 143
+        self.assemble_id = 150
         # self.assemble_id = 52
         # self.assemble_id = 130
 
@@ -123,7 +125,7 @@ class Test(object):
             
         self.tf_interface.set_tf_pose(self.tf_interface.tf_base2eef, self.robot_state, m = True, deg = True)
         pcd = self.camera.pcd()
-        self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],10)])
+        self.vis.pub_pcd(pcd[np.arange(1,pcd.shape[0],20)])
         self.vis.pub_mesh()
 
     def get_segment(self, vis:bool = True, data:str = None):
@@ -149,8 +151,7 @@ class Test(object):
         if self.reset_guide:
             # Move to guide top view and set tf
             if not self.simulation:
-                self.robot_server.SetVelocity(30)
-                self.move_to_pose(self.guide_top_view)
+                self.move_to_pose(self.guide_top_view, speed = 20)
                 self.set_tf()
             else:
                 self.set_tf(self.scene["guide"])
@@ -160,10 +161,10 @@ class Test(object):
             if not self.simulation:
                 seg = self.get_segment(vis=False)
             else:
-                seg = self.get_segment(self.scene['guide'])
+                seg = self.get_segment(vis = False, data = self.scene['guide'])
             # self.camera.vis_segment(seg)
             # self.camera.vis_image_segment(seg, image=self.camera.color_img)
-            self.vis.pub_mesh()
+            # self.vis.pub_mesh()
             for obj in seg:
                 crop_list = [6, 7, 9, 10, 11, 13, 15]
                 if obj[-1] in crop_list:
@@ -291,7 +292,7 @@ class Test(object):
     def get_grasp_pose(self, obj, obs_pcd=None):
         print("get_grasp_pose")
         target_frame = 'asset_' + str(obj[-1])
-        rospy.sleep(1)
+        # rospy.sleep(1)
         base2assemble = self.tf_interface.matrix('base_link', target_frame)
         offset = 0.001
         center = base2assemble[:3,3]
@@ -302,16 +303,16 @@ class Test(object):
             print("obs not defined")
     
         grip_points = np.array(self.grip_tf_config[str(obj[-1])]).reshape(-1, 3)
-        print('grip_points')
-        print(grip_points)
+        # print('grip_points')
+        # print(grip_points)
         grip_points = np.hstack([grip_points,np.ones((grip_points.shape[0], 1))])
         grip_points = (base2assemble @ grip_points.T).T
 
         is_parallel = grip_points[::2] - grip_points[1::2]
         is_parallel = 0.001 - np.abs(is_parallel)
         is_parallel = np.argwhere(is_parallel[:,2] > 0)
-        print('is_parallel')
-        print(is_parallel)
+        # print('is_parallel')
+        # print(is_parallel)
         parallel_points = np.squeeze(grip_points.reshape(-1, 2, 4)[is_parallel])
         if len(is_parallel) == 1:
             parallel_points = np.expand_dims(parallel_points, axis=0)
@@ -320,12 +321,12 @@ class Test(object):
         sorf_list = np.argsort(parallel_points[:,0,2])[::-1]
         for point_l, point_r in parallel_points[sorf_list]:
             if self.check_collision(point_l, point_r, obs_pcd):
-                print(point_l, point_r)
+                # print(point_l, point_r)
                 diff = point_l - point_r
                 angle = np.rad2deg((np.arctan2(diff[1], diff[0])))
                 center = (point_l + point_r)/2
-                print("grip angle:", angle)
-                print("grip point:", center)
+                # print("grip angle:", angle)
+                # print("grip point:", center)
                 print("success")
                 grasp_point = self.grip_point2matrix(center, angle)
                 self.tf_interface.add_stamp("base_link", "grasp_point", grasp_point, m = True, deg = False)
@@ -338,6 +339,7 @@ class Test(object):
         return None, None
 
     def check_collision(self, point_l, point_r, pcd):
+        print("Check Collision")
         
         dir = point_l - point_r
         norm_dir = dir / np.linalg.norm(dir)
@@ -345,12 +347,10 @@ class Test(object):
         # gripper width offset
         point_l += self.gripper_offset * norm_dir
         point_r -= self.gripper_offset * norm_dir
-        print("GRIPPPPPPPPPPPPPPPPPPPPP")
-        print(point_l, point_r)
+        # print(point_l, point_r)
 
-        grip_points = np.array([point_l, point_r])
-        self.vis.pub_target_pcd(grip_points)
-        rospy.sleep(3)
+        self.vis.pub_grip_point(np.array([point_l, point_r]))
+        # rospy.sleep(3)
         
         diff_l = pcd - point_l[:3] # (n, 3)
         diff_r = pcd - point_r[:3] # (n, 3)
@@ -393,14 +393,14 @@ class Test(object):
         if np.all(squared_distances > threshold):
             return True
         else:
-            print("SOMETHING IN GRIP AREA")
-            print(squared_distances.shape)
-            print(squared_distances)
+            # print("SOMETHING IN GRIP AREA")
+            # print(squared_distances.shape)
+            # print(squared_distances)
             thres_idx = np.where(squared_distances<threshold)
-            print(thres_idx)
+            # print(thres_idx)
             obs_pcd = obs_pcd[thres_idx]
-            self.vis.pub_target_pcd(obs_pcd[np.arange(1,obs_pcd.shape[0],5)])
-            rospy.sleep(3)
+            self.vis.pub_target_pcd(obs_pcd[np.arange(1,obs_pcd.shape[0],10)])
+            # rospy.sleep(3)
             return False
 
     def grip_point2matrix(self, point, pose):
@@ -479,8 +479,8 @@ class Test(object):
         assemble2grasp = np.linalg.inv(base2assemble) @ grasp_matrix
         base2assemble2 = np.matmul(base2guide, guide2place_set)
         base2place = np.dot(base2assemble2, assemble2grasp)
-        print("place candidate: ", base2place.shape)
-        print("place candidate: ", base2place)
+        # print("place candidate: ", base2place.shape)
+        # print("place candidate: ", base2place)
 
         # bizzare = []
         # for i, H in enumerate(base2place):
@@ -494,7 +494,7 @@ class Test(object):
 
         self.tf_interface.add_stamp('base_link', 'place', base2place[arg], m = True, deg = False)
         self.vis.pub_mesh()
-        rospy.sleep(0.5)
+        # rospy.sleep(0.5)
 
         # pick = grasp_matrix
         return base2place[arg]
@@ -659,7 +659,6 @@ class Test(object):
 
         # Get guide poses
         self.get_guide_poses()
-        # self.record('guide')
         
         while True:
             # Move to guide top view and set tf
@@ -673,8 +672,6 @@ class Test(object):
 
             # SEGMENT assemble
             seg = self.get_segment(vis = False)
-            # self.camera.vis_segment(seg)
-            # self.record('assemble')
             
             # calculate target assemble
             grasp_matrix = None
@@ -706,7 +703,7 @@ class Test(object):
             place_matrix = self.place(obj[-1], guide_idx, grasp_matrix)
 
             print("move to place")
-            print("z axis difference: ", rotation_matrix_error(grasp_matrix, place_matrix))
+            print("z axis difference: ", np.rad2deg(rotation_matrix_error(grasp_matrix, place_matrix)))
             if not self.simulation:
                 if rotation_matrix_error(grasp_matrix, place_matrix) > 1:
                     rospy.logfatal("throw object at home pose")

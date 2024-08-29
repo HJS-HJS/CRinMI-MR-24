@@ -25,8 +25,7 @@ CLASS = {
                                                                                                                         [[0, pi/2, pi/2], 2, 14], 
                                                                                                                         [[pi/2, 0, pi], 2, 13]    
                                                                                                                         ]},
-    # 5:  {'name': 'a_roller'             , 'type': '.stl', "voxel_size" : 0.0005,  'number_of_points': 20000  , 'rotate':[
-    5:  {'name': 'a_roller'             , 'type': '.obj', "voxel_size" : 0.0007,  'number_of_points': 20000  , 'rotate':[
+    5:  {'name': 'a_roller'             , 'type': '.stl', "voxel_size" : 0.0004,  'number_of_points': 20000  , 'rotate':[
                                                                                                                         [[0, 0, 0],     1, 15], 
                                                                                                                         [[pi/2, 0, pi/23],  1, 16]  
                                                                                                                         ]},

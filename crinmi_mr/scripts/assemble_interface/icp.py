@@ -15,7 +15,6 @@ class ICP():
         self.mesh_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'mesh'))
     
     def get_depth_pcd(self, np_pcd, id, is_guide = True):
-        print("points num: ", len(np_pcd))
         np_pcd = np_pcd[np.where(np_pcd[:,2] > 0.01)]
         np_pcd = np_pcd[np.where(np_pcd[:,2] < 0.3)]
         pcd = o3d.geometry.PointCloud()
@@ -141,6 +140,7 @@ class ICP():
                     min_pose = pose
                     min_mesh_pcd = copy.deepcopy(mesh_pcd)
             
+            min_mesh_pcd = min_mesh_pcd.voxel_down_sample(voxel_size=CLASS[id]['voxel_size']/10)
             return min_pose, min_mesh_pcd, min_matrix, guide_idx
                     
         else:

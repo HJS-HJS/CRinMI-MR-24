@@ -49,9 +49,9 @@ class Test(object):
         # self.scene = {"guide" : "depth_0067", "assemble": "depth_0071"}
         self.scene = {"guide" : "guide_0142", "assemble": "assemble_0"}
         # self.assemble_id = 20
-        # self.assemble_id = 29
+        self.assemble_id = 143
         # self.assemble_id = 52
-        self.assemble_id = 130
+        # self.assemble_id = 130
 
         # ========= RB10 interface test =========
         if not self.simulation: 
@@ -265,6 +265,7 @@ class Test(object):
         wall_pcd = self.camera.depth2pcd(wall_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
         # cut upper part
         wall_pcd = wall_pcd[wall_pcd[:,2] > 0.1]
+        wall_pcd = wall_pcd[wall_pcd[:,2] < 0.15]
 
         #### get obstacles ####
         obs_seg = np.zeros_like(seg[0][0])
@@ -318,7 +319,7 @@ class Test(object):
         # self.vis.pub_test_pcd(obs_pcd)
         sorf_list = np.argsort(parallel_points[:,0,2])[::-1]
         for point_l, point_r in parallel_points[sorf_list]:
-            if self.check_collision(point_l, obs_pcd) & self.check_collision(point_r, obs_pcd):
+            if self.check_collision(point_l, point_r, obs_pcd):
                 print(point_l, point_r)
                 diff = point_l - point_r
                 angle = np.rad2deg((np.arctan2(diff[1], diff[0])))
@@ -336,21 +337,70 @@ class Test(object):
 
         return None, None
 
-    def check_collision(self, point, pcd):
+    def check_collision(self, point_l, point_r, pcd):
         
-        diff = pcd - point[:3] # (n, 3)
+        dir = point_l - point_r
+        norm_dir = dir / np.linalg.norm(dir)
+        
+        # gripper width offset
+        point_l += self.gripper_offset * norm_dir
+        point_r -= self.gripper_offset * norm_dir
+        print("GRIPPPPPPPPPPPPPPPPPPPPP")
+        print(point_l, point_r)
 
+        grip_points = np.array([point_l, point_r])
+        self.vis.pub_target_pcd(grip_points)
+        rospy.sleep(3)
+        
+        diff_l = pcd - point_l[:3] # (n, 3)
+        diff_r = pcd - point_r[:3] # (n, 3)
+
+        diff = np.vstack((diff_l, diff_r)) # (2n, 3)
+
+        # # Calculate x,y distance
+        # obs_pcd = pcd[np.where(diff[:,2]>0)]
+        # squared_distances = np.linalg.norm(diff[np.where(diff[:,2] > 0)][:,:2], axis=1) # (n, )
+        # # finger tip size
+        # threshold = 0.01 + self.gripper_offset/2
+        # # No upper points
+        # if len(squared_distances)==0:
+        #        print("NOTHING UNDER GRIP POINT")
+        #        return True
+        # # All distances should be larger than threshold
+        # if np.all(squared_distances > threshold):
+        #     return True
+        # else:
+        #     print("SOMETHING IN GRIP AREA")
+        #     print(squared_distances.shape)
+        #     print(squared_distances)
+        #     thres_idx = np.where(squared_distances<threshold)
+        #     print(thres_idx)
+        #     obs_pcd = obs_pcd[thres_idx]
+        #     self.vis.pub_target_pcd(obs_pcd[np.arange(1,obs_pcd.shape[0],5)])
+        #     rospy.sleep(3)
+        #     return False
         # Calculate x,y distance
+        obs_pcd = np.vstack((pcd, pcd))
+        obs_pcd = obs_pcd[np.where(diff[:,2]>0)]
         squared_distances = np.linalg.norm(diff[np.where(diff[:,2] > 0)][:,:2], axis=1) # (n, )
         # finger tip size
-        threshold = 0.01 + self.gripper_offset/2
+        threshold = 0.01    
         # No upper points
         if len(squared_distances)==0:
+               print("NOTHING UNDER GRIP POINT")
                return True
         # All distances should be larger than threshold
         if np.all(squared_distances > threshold):
             return True
         else:
+            print("SOMETHING IN GRIP AREA")
+            print(squared_distances.shape)
+            print(squared_distances)
+            thres_idx = np.where(squared_distances<threshold)
+            print(thres_idx)
+            obs_pcd = obs_pcd[thres_idx]
+            self.vis.pub_target_pcd(obs_pcd[np.arange(1,obs_pcd.shape[0],5)])
+            rospy.sleep(3)
             return False
 
     def grip_point2matrix(self, point, pose):

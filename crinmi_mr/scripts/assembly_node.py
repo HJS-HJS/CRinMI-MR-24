@@ -39,15 +39,19 @@ class Test(object):
         self.grip_tf_config       = rospy.get_param("~match_grip")
 
         self.gripper_offset = 0.02
-        # self.reset_guide = False
-        self.reset_guide = True
+        self.reset_guide = False
+        # self.reset_guide = True
         # self.simulation = False
         self.simulation = True
         # self.scene = {"guide" : "guide_0027", "assemble": "assemble_0021"0}
         # self.scene = {"guide" : "guide_0025", "assemble": "assemble_0026"}
         # self.scene = {"guide" : "guide_0060", "assemble": "depth_0071"}
-        self.scene = {"guide" : "guide_0142", "assemble": "depth_0071"}
         # self.scene = {"guide" : "depth_0067", "assemble": "depth_0071"}
+        self.scene = {"guide" : "guide_0142", "assemble": "assemble_0"}
+        # self.assemble_id = 20
+        # self.assemble_id = 29
+        # self.assemble_id = 52
+        self.assemble_id = 130
 
         # ========= RB10 interface test =========
         if not self.simulation: 
@@ -275,7 +279,7 @@ class Test(object):
         # Integrate wall and obstacles
         obs_pcd = np.vstack((wall_pcd, obs_pcd))
         # Visualization
-        self.vis.pub_target_pcd(obs_pcd[np.arange(1,obs_pcd.shape[0],5)])
+        self.vis.pub_target_pcd(obs_pcd[np.arange(1,obs_pcd.shape[0],10)])
         
         print("before", len(seg))
         del seg[idx]
@@ -311,7 +315,7 @@ class Test(object):
         if len(is_parallel) == 1:
             parallel_points = np.expand_dims(parallel_points, axis=0)
             
-        self.vis.pub_test_pcd(obs_pcd)
+        # self.vis.pub_test_pcd(obs_pcd)
         sorf_list = np.argsort(parallel_points[:,0,2])[::-1]
         for point_l, point_r in parallel_points[sorf_list]:
             if self.check_collision(point_l, obs_pcd) & self.check_collision(point_r, obs_pcd):
@@ -382,7 +386,6 @@ class Test(object):
         self.pre_grasp_pose = self.grasp_pose.copy()
         self.pre_grasp_pose[2,3] += 0.5
         
-
         if self.simulation:
             # visualiz
             pass
@@ -615,7 +618,8 @@ class Test(object):
                 self.move_to_pose(self.assembly_top_view, speed = 35, is_assemble=True)
                 self.set_tf()
             else:
-                self.set_tf(self.scene["assemble"])
+                self.set_tf(self.scene["assemble"] + str(self.assemble_id))
+                self.assemble_id += 1
 
             # SEGMENT assemble
             seg = self.get_segment(vis = False)
@@ -638,10 +642,10 @@ class Test(object):
                     seg = self.get_segment(vis=False)
 
                 # Get grasp assemble 
-                obj, guide_idx = self.get_target(seg)
+                obj, guide_idx, obs_pcd = self.get_target(seg)
 
                 # Get grasp assemble pose, grip width
-                grasp_matrix, grasp_width = self.get_grasp_pose(obj)
+                grasp_matrix, grasp_width = self.get_grasp_pose(obj, obs_pcd)
 
             # move gripper to pick and grip
             if not self.simulation:

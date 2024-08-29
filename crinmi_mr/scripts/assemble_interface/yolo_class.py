@@ -1,8 +1,9 @@
 pi = 3.14159265358979
 CLASS = {
-    0:  {'name': 'a_L_shape_angle'      , 'type': '.obj', "voxel_size" : 0.0020,  'number_of_points': 20000  , 'rotate':[
+    # 0:  {'name': 'a_L_shape_angle'      , 'type': '.obj', "voxel_size" : 0.0020,  'number_of_points': 20000  , 'rotate':[
+    0:  {'name': 'a_L_shape_angle'      , 'type': '.obj', "voxel_size" : 0.0025,  'number_of_points': 20000  , 'rotate':[
                                                                                                                         [[0, 0, pi/2],      2, 6], 
-                                                                                                                        [[pi/2, 0, -pi/2],  2, 6],
+                                                                                                                        [[pi/2, 0, -pi/4],  2, 6],
                                                                                                                         # [[0, pi*3/4, 0], 12, -1]
                                                                                                                         ]},
     1:  {'name': 'a_bearing_holder'     , 'type': '.stl', "voxel_size" : 0.0007,  'number_of_points': 20000  , 'rotate':[

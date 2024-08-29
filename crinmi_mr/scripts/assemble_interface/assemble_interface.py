@@ -19,8 +19,8 @@ class AssembleInterface():
         depth_pcd = icp.get_depth_pcd(pcd, id, is_guide)
 
         pose, mesh_pcd, matrix, guide_idx = icp.run_icp(depth_pcd, id, is_guide)
-        # icp.vis_pcd(depth_pcd, mesh_pcd)
-        # icp.vis_pcd(depth_pcd, mesh_pcd, pose)
+        icp.vis_pcd(depth_pcd, mesh_pcd)
+        icp.vis_pcd(depth_pcd, mesh_pcd, pose)
 
         mesh_pcd.transform(pose)
 

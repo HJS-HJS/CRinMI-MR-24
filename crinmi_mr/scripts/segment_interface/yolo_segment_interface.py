@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from ultralytics import YOLO
 from PIL import Image
+from scipy.stats import mode
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(current_dir + '/yolov8')
@@ -36,7 +37,15 @@ class SegmentInterface():
                 binary_mask = cv2.resize(binary_mask, (1280, 720))
                 
                 # Append the mask and its corresponding label to the list
-                masks_ws_labels.append((binary_mask, [x1, y1, x2, y2], int(label)))
+                masks_ws_labels.append((SegmentInterface.segment_outlier(binary_mask), [x1, y1, x2, y2], int(label)))
 
         return masks_ws_labels
         
+    @staticmethod
+    def segment_outlier(segment):
+        mask = cv2.connectedComponents(segment)[1]
+        mask_1D = mask.reshape(-1,)
+        delet_mask_1D = mask_1D[np.where(mask_1D > 0)]
+        n = mode(delet_mask_1D , keepdims=True)[0][0]
+        mask = np.where(mask!=n,0,mask) / n
+        return mask.reshape(segment.shape).astype(np.uint8)

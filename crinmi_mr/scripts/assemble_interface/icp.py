@@ -15,6 +15,7 @@ class ICP():
         self.mesh_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'mesh'))
     
     def get_depth_pcd(self, np_pcd, id, is_guide = True):
+        print("points num: ", len(np_pcd))
         np_pcd = np_pcd[np.where(np_pcd[:,2] > 0.01)]
         np_pcd = np_pcd[np.where(np_pcd[:,2] < 0.3)]
         pcd = o3d.geometry.PointCloud()
@@ -24,9 +25,7 @@ class ICP():
         if id == 5:
             cl, ind = depth_pcd.remove_statistical_outlier(nb_neighbors=30, std_ratio=0.05)
             depth_pcd = depth_pcd.select_by_index(ind)
-        
-        print("points num: ", len(depth_pcd.points))
-        if id == 12:
+        elif id == 12:
             min_val = np.min(depth_pcd.points,axis=0)
             min_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val[2] + 0.005))
             depth_pcd = depth_pcd.select_by_index(np.array(min_list[0]))
@@ -34,6 +33,7 @@ class ICP():
             min_val = np.min(depth_pcd.points,axis=0)
             min_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val[2] + 0.001))
             depth_pcd = depth_pcd.select_by_index(np.array(min_list[0]))
+        print("points num: ", len(depth_pcd.points))
 
         # if id == 11:
             # print("down sample")
@@ -108,6 +108,12 @@ class ICP():
     def run_icp(self, depth_pcd, id:int, is_guide:bool = True):
 
         eigen_angle = self.eigen_angle(depth_pcd)
+        
+        if id == 0:
+            min_val = np.min(depth_pcd.points,axis=0)[2]
+            max_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val + 0.01))
+            depth_up_pcd = copy.deepcopy(depth_pcd).select_by_index(np.array(max_list[0]))
+            eigen_angle = self.eigen_angle(depth_up_pcd)
 
         if is_guide:
             print("Guide")
@@ -236,9 +242,40 @@ class ICP():
         depth_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=depth_pcd.get_center())
         mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=mesh.get_center())
         origin_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=[0, 0, 0])
-        # vis.add_geometry(depth_frame)
+        vis.add_geometry(depth_frame)
         # vis.add_geometry(mesh_frame)
         # vis.add_geometry(origin_frame)
+
+        # eigen = ICP.eigen_angle(depth_pcd)
+        # print('depth', np.rad2deg(eigen))
+
+
+        # min_val = np.min(depth_pcd.points,axis=0)[2]
+        # max_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val + 0.01))
+        # depth_up_pcd = copy.deepcopy(depth_pcd).select_by_index(np.array(max_list[0]))
+
+        # eigen_2 = ICP.eigen_angle(depth_up_pcd)
+        # print('depth', np.rad2deg(eigen_2))
+
+        # angle_arrow = o3d.geometry.TriangleMesh.create_arrow(cone_radius = 0.01,
+        #                                                      cone_height = 0.01,
+        #                                                      cylinder_radius = 0.005,
+        #                                                      cylinder_height = 0.05)
+        # arrow_rotation = ICP.rotation_matrix([np.pi/2, 0, np.pi/2 + eigen])
+        # arrow_rotation[0:3,3] = depth_pcd.get_center()
+        # rot_arrow = copy.deepcopy(angle_arrow).transform(arrow_rotation)
+        # rot_arrow.paint_uniform_color([1, 0 ,0])
+        # vis.add_geometry(rot_arrow)
+        
+        # eigen = ICP.eigen_angle(mesh)
+        # print('mesh', np.rad2deg(eigen))
+        # arrow_rotation = ICP.rotation_matrix([np.pi/2, 0, np.pi/2 + eigen])
+        # arrow_rotation[0:3,3] = mesh.get_center()
+        # rot_arrow = copy.deepcopy(angle_arrow).transform(arrow_rotation)
+        # rot_arrow.paint_uniform_color([0, 0 ,1])
+        # vis.add_geometry(rot_arrow)
+        
+
         vis.run()
 
 

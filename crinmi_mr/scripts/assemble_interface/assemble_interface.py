@@ -9,16 +9,16 @@ class AssembleInterface():
     def get_pose(self, pcd, id):
 
         print("target:\t", ICP.get_class_name(id))
+
+        icp = ICP()
         if id <= 5:
-            icp = ICP(0.001, 0.0000001)
             is_guide = False
         else:
-            icp = ICP(0.0001, 0.00005)
             is_guide = True
 
-        depth_pcd = icp.get_depth_pcd(pcd, id, is_guide)
+        depth_pcd = icp.get_depth_pcd(id, pcd)
 
-        pose, mesh_pcd, matrix, guide_idx = icp.run_icp(depth_pcd, id, is_guide)
+        pose, mesh_pcd, matrix, guide_idx = icp.run_icp(id, depth_pcd, is_guide)
         # icp.vis_pcd(depth_pcd, mesh_pcd)
         # icp.vis_pcd(depth_pcd, mesh_pcd, pose)
 

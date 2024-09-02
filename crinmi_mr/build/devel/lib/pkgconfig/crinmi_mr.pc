@@ -1,8 +1,0 @@
-prefix=/home/rise/catkin_ws/src/keti/crinmi/CRinMI_MR/crinmi_mr/build/devel
-
-Name: crinmi_mr
-Description: Description of crinmi_mr
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

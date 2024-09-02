@@ -47,7 +47,7 @@ class Test(object):
         self.calibration = CalibrationInterface()
         rospy.loginfo('Calibration Interface Ready')
 
-    
+
     def grip(self):
         self.robot_server.RobotMoveJ(self.pose_config[str(self.workspace_config)]["home_pose"])
         rospy.sleep(1)
@@ -61,11 +61,11 @@ class Test(object):
         rospy.sleep(1)
 
     def cali(self, assemble:str):
-        # self.robot_server.RobotMoveJ(self.pose_config[str(self.workspace_config)]["home_pose"])
-        # rospy.sleep(1)
-        # while not self.robot_server.wait:
-        #     print("wait")
-        #     rospy.sleep(1)
+        self.robot_server.RobotMoveJ(self.pose_config[str(self.workspace_config)]["home_pose"])
+        rospy.sleep(1)
+        while not self.robot_server.wait:
+            print("wait")
+            rospy.sleep(1)
 
         if assemble == 'a':
             pose = np.array(self.pose_config[str(self.workspace_config)]['assemble_capture_pose'])
@@ -106,12 +106,13 @@ class Test(object):
             is_assemble = False
 
         translate_set =[
-            [-0.35591771, -0.70861318, 0.00412545],
-            [-0.33542992, -0.81732723, 0.01023761],
-            [-0.24343641, -0.82559251, 0.01882259],
-            [-0.25028860, -0.70895178, 0.00987003],
-            [-0.23673559, -0.60596558, 0.00284474],
-            [-0.34436873, -0.59827143, 0.00644273],
+             [0.35134845, -0.79415213, 0.01944302],
+             [0.28806185, -0.63775786, 0.01706747],
+             [0.36244581, -0.59076256, 0.01697350],
+             [0.35564148, -0.86935763, 0.02809093],
+             [0.28266254, -0.73858798, 0.01663999],
+             [0.35881405, -0.69877554, 0.01762767],
+
         ]
 
         offset, translate = self.calibration.calculate_offset(translate_set[0], assemble = is_assemble)

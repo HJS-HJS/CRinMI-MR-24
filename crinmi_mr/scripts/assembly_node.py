@@ -177,6 +177,7 @@ class Test(object):
                     obj_seg = cv2.erode(obj[0], None, iterations=2) # asset
                 obj_depth = obj_seg * self.camera.depth_img
                 obj_pcd = self.camera.depth2pcd(obj_depth, self.tf_interface.matrix("base_link", "camera_calibration"))
+
                 self.vis.pub_target_pcd(obj_pcd[np.arange(1,obj_pcd.shape[0],5)])
                 pose, test_pcd, guied_idx = self.assemble.get_pose(obj_pcd, obj[-1])
                 self.tf_interface.add_stamp("base_link", "asset_" + str(obj[-1]), pose, m = True, deg = False)
@@ -194,6 +195,8 @@ class Test(object):
                 yaml.dump(self.guide, file)
 
         else:
+            print("6")
+            # rospy.sleep(20)
             with open(self.guide_save_dir + '/guide_pose.yaml', 'r') as file:
                 data = yaml.safe_load(file)
             self.guide = data
@@ -404,8 +407,7 @@ class Test(object):
             return False
 
     def grip_point2matrix(self, point, pose):
-        return pose2matrix([point[0], point[1], point[2] + 0.246, 90, 0, 42.8 + pose])
-        # return pose2matrix([point[0], point[1], point[2] + 0.246, 90, 0, 44 + pose])
+        return pose2matrix([point[0], point[1], point[2] + 0.246, 90, 0, 45.17 + pose])
 
     def select_guide(self):
         while True:

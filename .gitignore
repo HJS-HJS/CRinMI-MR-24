@@ -1,7 +1,7 @@
 *.pyc
 *.png
 !figure/*.png
-!figure/*.jpg
 *.jpg
+!figure/*.jpg
 *.txt
 data*.p

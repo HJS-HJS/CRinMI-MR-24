@@ -9,21 +9,38 @@ from assemble_interface.yolo_class import CLASS
 # from yolo_class import CLASS
 
 class ICP():
-    def __init__(self, voxel_size:float = 0.001, cost_change_threshold:float = 0.000005):
-        self.voxel_size = voxel_size
-        self.cost_change_threshold = cost_change_threshold
+    def __init__(self):
+        """ Python class for Point-to-Point ICP.
+        """
+        # Path where mesh file is saved
         self.mesh_dir = os.path.abspath(os.path.join(rospkg.RosPack().get_path('crinmi_mr'),'mesh'))
     
-    def get_depth_pcd(self, np_pcd, id, is_guide = True):
+    def get_depth_pcd(self, id:int, np_pcd:np.array):
+        """ Convert pcd to open3d format.
+
+        Args:
+            id (int): Id of depth pointcloud.
+            np_pcd (np.array): Depth pointcloud in n*3.
+
+        Returns:
+            o3d.geometry.PointCloud(): Depth pointcloud in open3d pointcloud type.
+        """
+        # Remove point cloud by z-axis height (filtering)
         np_pcd = np_pcd[np.where(np_pcd[:,2] > 0.01)]
         np_pcd = np_pcd[np.where(np_pcd[:,2] < 0.3)]
+        
+        # Pcd in open3d
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(np_pcd)
+        # Downsampling depth pcd
         depth_pcd = pcd.voxel_down_sample(voxel_size=CLASS[id]['voxel_size'])
         
+        # Separately filtered according to mesh type
+        # roller
         if id == 5:
             cl, ind = depth_pcd.remove_statistical_outlier(nb_neighbors=30, std_ratio=0.05)
             depth_pcd = depth_pcd.select_by_index(ind)
+        # guide hex wrench y
         elif id == 12:
             min_val = np.min(depth_pcd.points,axis=0)
             min_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val[2] + 0.005))
@@ -32,68 +49,81 @@ class ICP():
             min_val = np.min(depth_pcd.points,axis=0)
             min_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val[2] + 0.001))
             depth_pcd = depth_pcd.select_by_index(np.array(min_list[0]))
-        print("points num: ", len(depth_pcd.points))
 
-        # if id == 11:
-            # print("down sample")
-            # depth_pcd = depth_pcd.voxel_down_sample(voxel_size=self.voxel_size*1.5)
-            # print("points num: ", len(depth_pcd.points))
-        # if not is_guide:
-            # cl, ind = depth_pcd.remove_statistical_outlier(nb_neighbors=800, std_ratio=1.0)
-            # depth_pcd = depth_pcd.select_by_index(ind)
-        # depth_pcd.paint_uniform_color([1, 0, 0])
         return depth_pcd
     
-    def get_mesh_angle_pcd(self, id, depth_pcd, angle_list:np.array=np.array([0, 0, 0]), is_guide:bool = False):
+    def get_mesh_angle_pcd(self, id:int, depth_pcd:o3d.geometry.PointCloud, angle_list:np.array=np.array([0, 0, 0]), is_guide:bool = False):
+        """ Convert mesh to pcd as open3d format. Match the position of the mesh pointcloud to the depth pointcloud and rotate it according to the angle list.
+
+        Args:
+            id (int): Id of depth pointcloud.
+            depth_pcd (o3d.geometry.PointCloud): Depth pcd from ICP.get_depth_pcd() function.
+            angle_list (np.array, optional): Angle to rotate mesh. Defaults to np.array([0, 0, 0]).
+            is_guide (bool, optional): Determine whether the corresponding mesh is a guide or an assembly. Defaults to False.
+
+        Returns:
+            o3d.geometry.PointCloud: Pointcloud from mesh.
+            np.array: Transform matrix of mesh [4*4].
+        """
+        
+        # Import mesh
+        mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
+        mesh.scale(0.001, center=([0, 0, 0]))
+        # Mesh to pcd
+        mesh_pcd = mesh.sample_points_uniformly(number_of_points = CLASS[id]['number_of_points'])
+        
         if is_guide:
-            # import mesh
-            mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
-            mesh.scale(0.001, center=([0, 0, 0]))
-            # mesh to pcd
-            mesh_pcd = mesh.sample_points_uniformly(number_of_points = CLASS[id]['number_of_points'])
-            
-            # rotation
+            # Rotation
+            # TODO mesh의 rotation 이후의 eigen vector 방향이 반영되어야 하는데 그렇지 못함.
             eigen_angle = self.eigen_angle(mesh_pcd)
             angle_set = np.array([np.pi/2, 0, -eigen_angle]) + angle_list
+            # Generate rotation matrix
             matrix = tf.transformations.euler_matrix(angle_set[0], angle_set[1], angle_set[2])
+            # Translate
+            # Move mesh pointcloud center to depth pointcloud center.
             matrix[0:3,3] = depth_pcd.get_center() - mesh_pcd.get_center()
-            # matrix[0:3,3] += [0, 0, -0.015]
+            # Shift the mesh pointcloud down slightly for stable ICP.
             matrix[0:3,3] += [0, 0, -0.02]
+            
+            # Apply transform matrix to mesh pointcloud.
             mesh_pcd.transform(matrix)
+
+            # In the case of wrench y, the sides may be captured strangely, so the center of the depth pointcloud is calculated only in some areas.
             if id == 12:
                 max_val = np.max(depth_pcd.points,axis=0)[2]
                 max_list = np.where(np.array(depth_pcd.points)[:,2] > (max_val - 0.0015))
                 depth_up_pcd = copy.deepcopy(depth_pcd).select_by_index(np.array(max_list[0]))
                 trans = depth_up_pcd.get_center() - mesh_pcd.get_center()
                 trans[2] = 0
-                mesh_pcd.translate(trans)
                 matrix[0:3,3] += trans
+                mesh_pcd.translate(trans)
 
+            # Considering the case where the floor is held together, only a certain height based on the z-axis is used.
             min_val = np.min(mesh_pcd.points,axis=0)
             min_list = np.where(np.array(mesh_pcd.points)[:,2] > (min_val[2] + 0.001))
             mesh_pcd = mesh_pcd.select_by_index(np.array(min_list[0]))
-            eigen_angle = self.eigen_angle(mesh_pcd)
             
         else:
-            # import mesh
-            mesh = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
-            mesh.scale(0.001, center=([0, 0, 0]))
-            # mesh to pcd
-            mesh_pcd = mesh.sample_points_uniformly(number_of_points = CLASS[id]['number_of_points'])
-
             # rotation
+            # TODO mesh의 rotation 이후의 eigen vector 방향이 반영되어야 하는데 그렇지 못함.
             if id == 0:
                 eigen_angle = 0
             else:
                 eigen_angle = self.eigen_angle(mesh_pcd)
             angle_set = np.array([np.pi/2, 0, -eigen_angle]) + angle_list
+            # Generate rotation matrix
             matrix = tf.transformations.euler_matrix(angle_set[0], angle_set[1], angle_set[2])
-            mesh_pcd.transform(matrix)
 
             # transform
+            # Move mesh pointcloud center to depth pointcloud center.
             matrix[0:3,3] = depth_pcd.get_center() - mesh_pcd.get_center()
+            # Shift the mesh pointcloud down slightly for stable ICP.
             matrix[0:3,3] += [0, 0, -0.015]
-            mesh_pcd.translate(matrix[0:3,3])
+
+            # Apply transform matrix to mesh pointcloud.
+            mesh_pcd.transform(matrix)
+
+            # Considering the case where the floor is held together, only a certain height based on the z-axis is used.
             min_val = np.min(mesh_pcd.points,axis=0)
             if id == 1:
                 min_list = np.where(np.array(mesh_pcd.points)[:,2] > (min_val[2] + 0.001))
@@ -104,10 +134,26 @@ class ICP():
             mesh_pcd = mesh_pcd.select_by_index(np.array(min_list[0]))
         return mesh_pcd, matrix
 
-    def run_icp(self, depth_pcd, id:int, is_guide:bool = True):
+    def run_icp(self, id:int, depth_pcd:o3d.geometry.PointCloud, is_guide:bool = True):
+        """ Set the ICP to run according to the predetermined case.
+
+        Args:
+            id (int): Id of depth pointcloud.
+            depth_pcd (o3d.geometry.PointCloud): Depth pcd from ICP.get_depth_pcd() function.
+            is_guide (bool, optional): Determine whether the corresponding mesh is a guide or an assembly. Defaults to False.
+
+        Returns:
+            np.array: _description_
+        """
 
         eigen_angle = self.eigen_angle(depth_pcd)
         
+        min_cost   = 1000.0
+        min_pose   = np.eye(4)
+        min_matrix = np.eye(4)
+        min_mesh_pcd = None
+        guide_idx = id
+
         if id == 0:
             min_val = np.min(depth_pcd.points,axis=0)[2]
             max_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val + 0.01))
@@ -116,11 +162,6 @@ class ICP():
 
         if is_guide:
             print("Guide")
-            min_cost   = 1000.0
-            min_pose   = np.eye(4)
-            min_matrix = np.eye(4)
-            min_mesh_pcd = None
-            guide_idx = id
             if CLASS[id]['rotate'] > 10:
                 angle_set = np.pi / 4 / ((CLASS[id]['rotate'] - 1) % 10)
             else: 
@@ -130,26 +171,16 @@ class ICP():
                 print('case ', i + 1)
                 angle = [0, 0, eigen_angle + angle_set * i]
                 mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
-                # self.vis_pcd(depth_pcd, mesh_pcd)
                 mesh = copy.deepcopy(mesh_pcd)
                 pose, cost = self.icp(mesh, depth_pcd)
-                # self.vis_pcd(depth_pcd, mesh_pcd, pose)
                 if cost < min_cost:
                     min_cost = cost
                     min_matrix = matrix
                     min_pose = pose
                     min_mesh_pcd = copy.deepcopy(mesh_pcd)
-            
-            min_mesh_pcd = min_mesh_pcd.voxel_down_sample(voxel_size=CLASS[id]['voxel_size']/10)
-            return min_pose, min_mesh_pcd, min_matrix, guide_idx
                     
         else:
             print("Assmeble")
-            min_cost = 1000.0
-            min_pose = np.eye(4)
-            min_matrix = np.eye(4)
-            min_mesh_pcd = None
-            guide_idx = -1
             for idx, case in enumerate(CLASS[id]['rotate']):
                 print('case #', idx + 1)
                 if case[1] > 10:
@@ -159,26 +190,35 @@ class ICP():
                 for i in range(case[1] % 10):
                     angle = np.array(case[0]) + [0, 0, eigen_angle + angle_set * i]
                     mesh_pcd, matrix = self.get_mesh_angle_pcd(id, depth_pcd, np.array(angle), is_guide)
-                    # self.vis_pcd(depth_pcd, mesh_pcd)
                     mesh = copy.deepcopy(mesh_pcd)
                     pose, cost = self.icp(mesh, depth_pcd)
-                    # self.vis_pcd(depth_pcd, mesh_pcd, pose)
                     if cost < min_cost:
                         min_cost = cost
                         min_matrix = matrix
                         min_pose = pose
                         min_mesh_pcd = copy.deepcopy(mesh_pcd)
                         guide_idx = case[2]
-            return min_pose, min_mesh_pcd, min_matrix, guide_idx
+
+        min_mesh_pcd = min_mesh_pcd.voxel_down_sample(voxel_size=CLASS[id]['voxel_size']/10)
+        return min_mesh_pcd, min_pose, min_matrix, guide_idx
 
     def icp(self, source, target):
+        """_summary_
+
+        Args:
+            source (_type_): _description_
+            target (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         target_points = np.asarray(target.points)
 
         # While loop variables
         curr_iteration = 0
         curr_cost = 1000
         prev_cost = 10000 
-
+        cost_change_threshold = 0.0000001
         total_transform_matrix = np.eye(4)
 
         while (True):
@@ -196,7 +236,6 @@ class ICP():
             # 3. Find correspondence between source and target point clouds
             cov_mat = np.zeros((3,3))
             cov_mat[:2,:2] = (target_repos.transpose() @ source_repos)[:2,:2]
-            # cov_mat = target_repos.transpose() @ source_repos
 
             U, X, Vt = np.linalg.svd(cov_mat)
             R = U @ Vt
@@ -204,7 +243,7 @@ class ICP():
             t = np.reshape(t, (1,3))
             curr_cost = np.linalg.norm(target_repos - (R @ source_repos.T).T)
             # print("Curr_cost=", curr_cost)
-            if ((prev_cost - curr_cost) > self.cost_change_threshold):
+            if ((prev_cost - curr_cost) > cost_change_threshold):
                 prev_cost = curr_cost
                 transform_matrix = np.hstack((R, t.T))
                 transform_matrix = np.vstack((transform_matrix, np.array([0, 0, 0, 1])))
@@ -243,38 +282,6 @@ class ICP():
         mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=mesh.get_center())
         origin_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1, origin=[0, 0, 0])
         vis.add_geometry(depth_frame)
-        # vis.add_geometry(mesh_frame)
-        # vis.add_geometry(origin_frame)
-
-        # eigen = ICP.eigen_angle(depth_pcd)
-        # print('depth', np.rad2deg(eigen))
-
-
-        # min_val = np.min(depth_pcd.points,axis=0)[2]
-        # max_list = np.where(np.array(depth_pcd.points)[:,2] > (min_val + 0.01))
-        # depth_up_pcd = copy.deepcopy(depth_pcd).select_by_index(np.array(max_list[0]))
-
-        # eigen_2 = ICP.eigen_angle(depth_up_pcd)
-        # print('depth', np.rad2deg(eigen_2))
-
-        # angle_arrow = o3d.geometry.TriangleMesh.create_arrow(cone_radius = 0.01,
-        #                                                      cone_height = 0.01,
-        #                                                      cylinder_radius = 0.005,
-        #                                                      cylinder_height = 0.05)
-        # arrow_rotation = ICP.rotation_matrix([np.pi/2, 0, np.pi/2 + eigen])
-        # arrow_rotation[0:3,3] = depth_pcd.get_center()
-        # rot_arrow = copy.deepcopy(angle_arrow).transform(arrow_rotation)
-        # rot_arrow.paint_uniform_color([1, 0 ,0])
-        # vis.add_geometry(rot_arrow)
-        
-        # eigen = ICP.eigen_angle(mesh)
-        # print('mesh', np.rad2deg(eigen))
-        # arrow_rotation = ICP.rotation_matrix([np.pi/2, 0, np.pi/2 + eigen])
-        # arrow_rotation[0:3,3] = mesh.get_center()
-        # rot_arrow = copy.deepcopy(angle_arrow).transform(arrow_rotation)
-        # rot_arrow.paint_uniform_color([0, 0 ,1])
-        # vis.add_geometry(rot_arrow)
-        
 
         vis.run()
 
@@ -321,31 +328,14 @@ class ICP():
         origin_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.01, origin=[0, 0, 0])
         vis.add_geometry(origin_frame)
         vis.run()
-        
-
-        # points = np.array([
-        #     [0.1, 0.1, -0.1],
-        #     [-0.1, 0.1, -0.1],
-        #     [-0.1, -0.1, -0.1],
-        #     [0.1, -0.1, -0.1],
-        #     [0.1, -0.1, 0.1],
-        #     [0.1, 0.1, 0.1],
-        #     [-0.1, 0.1, 0.1],
-        #     [-0.1, -0.1, 0.1],
-        # ])
-
 
         vol = o3d.visualization.SelectionPolygonVolume()
         vol.orthogonal_axis = "Z"
         vol.axis_min = -2000
         vol.axis_max = 4000
-        # vol.bounding_polygon = o3d.utility.Vector3dVector(points)
-        # cropped_pcd = vol.crop_point_cloud(mesh_pcd)
 
         id = 12 
         mesh2 = o3d.io.read_triangle_mesh(self.mesh_dir + "/" + CLASS[id]['name'] + CLASS[id]['type'])
-        # mesh2.scale(0.001, center=([0, 0, 0]))
-        # mesh to pcd
         mesh_pcd2 = mesh.sample_points_uniformly(number_of_points = 5000)
 
         vol.bounding_polygon = o3d.utility.Vector3dVector(mesh_pcd.points)
